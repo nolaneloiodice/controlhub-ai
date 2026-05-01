@@ -488,6 +488,222 @@ def page_daily_session():
     )
 
 
+def page_command_center():
+    profile, skills, projects, goals = load_all_data()
+
+    st.title("🕹️ Command Center")
+
+    st.write(
+        "Le Command Center est le futur panneau de contrôle des agents IA de ControlHub AI. "
+        "Pour l’instant, les agents fonctionnent en mode local/simulation, sans action automatique externe."
+    )
+
+    st.divider()
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        agent = st.selectbox(
+            "Agent",
+            [
+                "Agent Apprentissage",
+                "Agent Carrière",
+                "Agent GitHub",
+                "Agent LinkedIn",
+                "Agent Email",
+                "Agent Cyber",
+                "Agent Vie personnelle"
+            ]
+        )
+
+    with col2:
+        action = st.selectbox(
+            "Action",
+            [
+                "Préparer ma journée",
+                "Générer une tâche prioritaire",
+                "Résumer ma progression",
+                "Préparer un post LinkedIn",
+                "Préparer un email de relance",
+                "Proposer une amélioration GitHub",
+                "Préparer une session TryHackMe",
+                "Préparer une session Linux",
+                "Créer une checklist"
+            ]
+        )
+
+    with col3:
+        mode = st.selectbox(
+            "Mode d’exécution",
+            [
+                "Suggestion uniquement",
+                "Brouillon à valider",
+                "Action contrôlée plus tard"
+            ]
+        )
+
+    st.info(
+        f"Agent sélectionné : **{agent}** | Action : **{action}** | Mode : **{mode}**"
+    )
+
+    active_goals = [goal for goal in goals if goal.get("status") != "terminé"]
+    high_priority_goals = [
+        goal for goal in active_goals
+        if goal.get("priority", "").lower() == "haute"
+    ]
+
+    priority_goal = None
+
+    if high_priority_goals:
+        priority_goal = high_priority_goals[0]
+    elif active_goals:
+        priority_goal = active_goals[0]
+
+    st.divider()
+
+    if st.button("Lancer l’agent"):
+        st.subheader("Résultat généré")
+
+        if action == "Préparer ma journée":
+            st.markdown("### Plan de journée recommandé")
+
+            if priority_goal:
+                st.write(f"**Priorité principale :** {priority_goal.get('title')}")
+                st.write(priority_goal.get("description", ""))
+
+            st.write("1. Faire une session concentrée de 45 à 90 minutes.")
+            st.write("2. Travailler sur une seule priorité.")
+            st.write("3. Noter ce qui a été fait dans le learning log.")
+            st.write("4. Faire un petit commit Git si le projet a avancé.")
+            st.write("5. Préparer la prochaine action.")
+
+        elif action == "Générer une tâche prioritaire":
+            if priority_goal:
+                st.success(priority_goal.get("title", "Objectif prioritaire"))
+                st.write(priority_goal.get("description", ""))
+
+                st.markdown("### Tâche concrète")
+                st.write(
+                    "Travaille 60 minutes sur cet objectif. À la fin, écris une note courte avec : "
+                    "ce que tu as fait, ce que tu as compris, ce qui bloque, prochaine action."
+                )
+            else:
+                st.warning("Aucun objectif actif trouvé. Ajoute un objectif dans l’onglet Objectifs.")
+
+        elif action == "Résumer ma progression":
+            name = profile.get("name", "Nolane")
+            main_goal = profile.get("main_goal", "progresser en IT/cyber")
+
+            st.markdown("### Résumé de progression")
+
+            st.write(f"**Profil :** {name}")
+            st.write(f"**Objectif principal :** {main_goal}")
+            st.write(f"**Compétences suivies :** {len(skills)}")
+            st.write(f"**Projets enregistrés :** {len(projects)}")
+            st.write(f"**Objectifs actifs :** {len(active_goals)}")
+
+            if projects:
+                st.markdown("### Projets clés")
+                for project in projects[:5]:
+                    st.write(
+                        f"- **{project.get('name', 'Projet')}** "
+                        f"({project.get('category', 'Catégorie non définie')})"
+                    )
+
+        elif action == "Préparer un post LinkedIn":
+            st.markdown("### Brouillon LinkedIn")
+
+            st.markdown(
+                """
+Je continue à construire **ControlHub AI**, mon centre de contrôle personnel pour organiser ma progression en informatique.
+
+L’objectif est de centraliser mes compétences, mes projets, mes objectifs, mes notes et mes prochaines actions dans un dashboard Python.
+
+Ce projet me permet d’apprendre en construisant, tout en renforçant des compétences importantes pour mon parcours BTS SIO SISR :
+- systèmes et réseaux
+- Linux
+- cybersécurité
+- Python
+- Git/GitHub
+- documentation technique
+- organisation de projet
+
+Prochaine étape : faire évoluer ControlHub AI vers un véritable panel multi-agents capable de m’assister sur GitHub, les emails, LinkedIn, l’apprentissage et l’organisation quotidienne.
+                """
+            )
+
+        elif action == "Préparer un email de relance":
+            st.markdown("### Brouillon email")
+
+            st.markdown(
+                """
+Bonjour,
+
+Je me permets de revenir vers vous à la suite de notre échange concernant ma recherche d’alternance pour le BTS SIO option SISR.
+
+Depuis notre rencontre, j’ai continué à structurer ma montée en compétences en systèmes, réseaux et cybersécurité. J’ai notamment avancé sur mes labs réseaux documentés sur GitHub et sur un projet personnel en Python, ControlHub AI, qui me permet de suivre mes compétences, projets, objectifs et notes d’apprentissage.
+
+Je reste disponible pour un entretien ou tout échange complémentaire.
+
+Cordialement,  
+Nolane Loiodice
+                """
+            )
+
+        elif action == "Proposer une amélioration GitHub":
+            st.markdown("### Améliorations GitHub recommandées")
+
+            st.write("1. Ajouter une description claire à chaque repository.")
+            st.write("2. Améliorer les README avec : objectif, topologie, notions, étapes, résultat.")
+            st.write("3. Ajouter des captures ou schémas quand c’est possible.")
+            st.write("4. Ajouter une section “Compétences travaillées”.")
+            st.write("5. Mettre en avant ControlHub AI comme projet central.")
+
+        elif action == "Préparer une session TryHackMe":
+            st.markdown("### Session TryHackMe recommandée")
+
+            st.write("Durée : 45 à 60 minutes.")
+            st.write("Objectif : avancer sur une room sans chercher à tout finir trop vite.")
+            st.write("Méthode :")
+            st.write("1. Lire les consignes en anglais.")
+            st.write("2. Noter les mots techniques inconnus.")
+            st.write("3. Répondre aux questions.")
+            st.write("4. Faire un résumé en français dans Notes.")
+            st.write("5. Ajouter les compétences vues dans ControlHub AI.")
+
+        elif action == "Préparer une session Linux":
+            st.markdown("### Session Linux recommandée")
+
+            st.write("Objectif : reprendre le lab Ubuntu / Apache.")
+            st.write("Plan :")
+            st.code(
+                """sudo apt update
+sudo apt install apache2
+systemctl status apache2
+ss -tuln
+hostname -I""",
+                language="bash"
+            )
+            st.write("À la fin, note ce qui fonctionne et ce qui bloque encore.")
+
+        elif action == "Créer une checklist":
+            st.markdown("### Checklist générée")
+
+            st.checkbox("Définir l’objectif de la session")
+            st.checkbox("Ouvrir les bons outils")
+            st.checkbox("Travailler 45 à 90 minutes")
+            st.checkbox("Noter les résultats")
+            st.checkbox("Faire un commit si nécessaire")
+            st.checkbox("Préparer la prochaine action")
+
+        st.divider()
+
+        st.caption(
+            "Pour l’instant, aucune action externe n’est exécutée automatiquement. "
+            "Les agents préparent des suggestions et brouillons que tu valides toi-même."
+        )
+
+
 def page_ai_assistant():
     profile, skills, projects, goals = load_all_data()
 
@@ -638,6 +854,7 @@ def main():
     "Navigation",
     [
     "Accueil",
+    "Command Center",
     "Compétences",
     "Projets",
     "Objectifs",
@@ -649,10 +866,12 @@ def main():
 )
 
     st.sidebar.divider()
-    st.sidebar.caption("Version 0.6 — Sessions guidées")
+    st.sidebar.caption("Version 0.7 — Command Center")
 
     if page == "Accueil":
         page_home()
+    elif page == "Command Center":
+        page_command_center()
     elif page == "Compétences":
         page_skills()
     elif page == "Projets":
