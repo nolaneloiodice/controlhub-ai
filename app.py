@@ -18,20 +18,24 @@ def load_json(file_path, default_data):
     return default_data
 
 
-def main():
-    st.set_page_config(
-        page_title="ControlHub AI",
-        page_icon="🧠",
-        layout="wide"
-    )
+def save_json(file_path, data):
+    with open(file_path, "w", encoding="utf-8") as file:
+        json.dump(data, file, indent=4, ensure_ascii=False)
 
+
+def load_all_data():
     profile = load_json(PROFILE_FILE, {})
     skills = load_json(SKILLS_FILE, [])
     projects = load_json(PROJECTS_FILE, [])
     goals = load_json(GOALS_FILE, [])
+    return profile, skills, projects, goals
+
+
+def page_home():
+    profile, skills, projects, goals = load_all_data()
 
     st.title("🧠 ControlHub AI")
-    st.write("Ton centre de contrôle personnel pour progresser en IT, réseaux, cybersécurité et IA.")
+    st.write("Centre de contrôle personnel pour progresser en IT, réseaux, cybersécurité et IA.")
 
     name = profile.get("name", "Nolane")
     main_goal = profile.get("main_goal", "Construire un assistant personnel et progresser en IT/cyber.")
@@ -39,65 +43,18 @@ def main():
     st.subheader(f"Bienvenue, {name}")
     st.info(main_goal)
 
+    active_goals = [goal for goal in goals if goal.get("status") != "terminé"]
+
     col1, col2, col3 = st.columns(3)
 
     with col1:
-        st.metric("Compétences suivies", len(skills))
+        st.metric("Compétences", len(skills))
 
     with col2:
-        st.metric("Projets enregistrés", len(projects))
+        st.metric("Projets", len(projects))
 
     with col3:
-        active_goals = [goal for goal in goals if goal.get("status") != "terminé"]
         st.metric("Objectifs actifs", len(active_goals))
-
-    st.divider()
-
-    left_col, right_col = st.columns(2)
-
-    with left_col:
-        st.header("🎯 Objectifs")
-
-        if not goals:
-            st.write("Aucun objectif enregistré.")
-        else:
-            for goal in goals:
-                st.markdown(f"### {goal.get('title', 'Objectif sans titre')}")
-                st.write(f"**Catégorie :** {goal.get('category', 'Non définie')}")
-                st.write(f"**Priorité :** {goal.get('priority', 'Non définie')}")
-                st.write(f"**Statut :** {goal.get('status', 'Non défini')}")
-                st.write(goal.get("description", ""))
-
-    with right_col:
-        st.header("🧩 Compétences")
-
-        if not skills:
-            st.write("Aucune compétence enregistrée.")
-        else:
-            for skill in skills:
-                skill_name = skill.get("name", "Compétence")
-                level = skill.get("level", 1)
-                st.write(f"**{skill_name}** — {level}/5")
-                st.progress(level / 5)
-
-    st.divider()
-
-    st.header("🚀 Projets")
-
-    if not projects:
-        st.write("Aucun projet enregistré.")
-    else:
-        for project in projects:
-            with st.expander(project.get("name", "Projet sans nom")):
-                st.write(f"**Catégorie :** {project.get('category', 'Non définie')}")
-                st.write(f"**Statut :** {project.get('status', 'Non défini')}")
-                st.write(f"**GitHub :** {project.get('github_url', '')}")
-                st.write(project.get("description", ""))
-
-                skills_list = project.get("skills", [])
-                if skills_list:
-                    st.write("**Compétences liées :**")
-                    st.write(", ".join(skills_list))
 
     st.divider()
 
@@ -111,14 +68,227 @@ def main():
 
     if high_priority_goals:
         goal = high_priority_goals[0]
-        st.success(f"Priorité actuelle : {goal.get('title')}")
+        st.success(goal.get("title", "Objectif prioritaire"))
         st.write(goal.get("description", ""))
-    elif goals:
-        goal = goals[0]
-        st.info(f"Objectif à avancer : {goal.get('title')}")
+    elif active_goals:
+        goal = active_goals[0]
+        st.info(goal.get("title", "Objectif à avancer"))
         st.write(goal.get("description", ""))
     else:
-        st.warning("Ajoute un objectif pour que ControlHub AI puisse recommander une priorité.")
+        st.warning("Aucun objectif actif. Ajoute un objectif pour guider ta progression.")
+
+    st.divider()
+
+    st.header("🧭 Prochaine logique de progression")
+    st.write(
+        "Pour ton profil BTS SIO SISR, la priorité est de consolider : "
+        "**réseaux**, **Linux**, **cybersécurité défensive**, puis **Python/automatisation**."
+    )
+
+
+def page_skills():
+    skills = load_json(SKILLS_FILE, [])
+
+    st.title("🧩 Compétences")
+
+    with st.form("add_skill_form"):
+        st.subheader("Ajouter une compétence")
+
+        name = st.text_input("Nom de la compétence")
+        level = st.slider("Niveau", min_value=1, max_value=5, value=1)
+
+        submitted = st.form_submit_button("Ajouter")
+
+        if submitted:
+            if name.strip():
+                skills.append({
+                    "name": name.strip(),
+                    "level": level
+                })
+                save_json(SKILLS_FILE, skills)
+                st.success("Compétence ajoutée.")
+                st.rerun()
+            else:
+                st.error("Le nom de la compétence est obligatoire.")
+
+    st.divider()
+
+    st.subheader("Compétences suivies")
+
+    if not skills:
+        st.write("Aucune compétence enregistrée.")
+    else:
+        for skill in skills:
+            skill_name = skill.get("name", "Compétence")
+            level = skill.get("level", 1)
+
+            st.write(f"**{skill_name}** — {level}/5")
+            st.progress(level / 5)
+
+
+def page_projects():
+    projects = load_json(PROJECTS_FILE, [])
+
+    st.title("🚀 Projets")
+
+    with st.form("add_project_form"):
+        st.subheader("Ajouter un projet")
+
+        name = st.text_input("Nom du projet")
+        category = st.text_input("Catégorie", placeholder="Réseaux, Systèmes, Cyber, Python, IA...")
+        status = st.selectbox("Statut", ["idée", "en cours", "terminé", "en pause"])
+        github_url = st.text_input("Lien GitHub")
+        description = st.text_area("Description courte")
+        skills_input = st.text_input("Compétences liées, séparées par des virgules")
+
+        submitted = st.form_submit_button("Ajouter")
+
+        if submitted:
+            if name.strip():
+                skills = [skill.strip() for skill in skills_input.split(",") if skill.strip()]
+
+                projects.append({
+                    "name": name.strip(),
+                    "category": category.strip(),
+                    "status": status,
+                    "github_url": github_url.strip(),
+                    "description": description.strip(),
+                    "skills": skills
+                })
+
+                save_json(PROJECTS_FILE, projects)
+                st.success("Projet ajouté.")
+                st.rerun()
+            else:
+                st.error("Le nom du projet est obligatoire.")
+
+    st.divider()
+
+    st.subheader("Projets enregistrés")
+
+    if not projects:
+        st.write("Aucun projet enregistré.")
+    else:
+        for project in projects:
+            with st.expander(project.get("name", "Projet sans nom")):
+                st.write(f"**Catégorie :** {project.get('category', 'Non définie')}")
+                st.write(f"**Statut :** {project.get('status', 'Non défini')}")
+                st.write(f"**GitHub :** {project.get('github_url', '')}")
+                st.write(project.get("description", ""))
+
+                skills = project.get("skills", [])
+                if skills:
+                    st.write("**Compétences liées :**")
+                    st.write(", ".join(skills))
+
+
+def page_goals():
+    goals = load_json(GOALS_FILE, [])
+
+    st.title("🎯 Objectifs")
+
+    with st.form("add_goal_form"):
+        st.subheader("Ajouter un objectif")
+
+        title = st.text_input("Titre de l'objectif")
+        category = st.text_input("Catégorie", placeholder="Systèmes, Réseaux, Cyber, Python, Portfolio...")
+        priority = st.selectbox("Priorité", ["basse", "moyenne", "haute"])
+        status = st.selectbox("Statut", ["en cours", "terminé", "en pause"])
+        description = st.text_area("Description courte")
+
+        submitted = st.form_submit_button("Ajouter")
+
+        if submitted:
+            if title.strip():
+                goals.append({
+                    "title": title.strip(),
+                    "category": category.strip(),
+                    "priority": priority,
+                    "status": status,
+                    "description": description.strip()
+                })
+
+                save_json(GOALS_FILE, goals)
+                st.success("Objectif ajouté.")
+                st.rerun()
+            else:
+                st.error("Le titre de l'objectif est obligatoire.")
+
+    st.divider()
+
+    st.subheader("Objectifs enregistrés")
+
+    if not goals:
+        st.write("Aucun objectif enregistré.")
+    else:
+        for goal in goals:
+            with st.expander(goal.get("title", "Objectif sans titre")):
+                st.write(f"**Catégorie :** {goal.get('category', 'Non définie')}")
+                st.write(f"**Priorité :** {goal.get('priority', 'Non définie')}")
+                st.write(f"**Statut :** {goal.get('status', 'Non défini')}")
+                st.write(goal.get("description", ""))
+
+
+def page_ai_assistant():
+    st.title("🤖 Assistant IA")
+
+    st.info("Cette page préparera l’intégration IA. Pour l’instant, elle sert de prototype d’interface.")
+
+    prompt = st.text_area(
+        "Demande à ton futur assistant :",
+        placeholder="Exemple : Génère-moi une tâche du jour pour progresser en Linux et cybersécurité."
+    )
+
+    if st.button("Générer une réponse prototype"):
+        if prompt.strip():
+            st.subheader("Réponse prototype")
+            st.write(
+                "Pour l’instant, l’IA n’est pas encore connectée. "
+                "Mais cette zone servira bientôt à générer des tâches, résumés, posts LinkedIn, README et plans d’apprentissage."
+            )
+
+            st.markdown("### Exemple de tâche")
+            st.write(
+                "Travaille 45 minutes sur ton objectif prioritaire, puis ajoute un résumé dans ton learning log."
+            )
+        else:
+            st.warning("Écris d’abord une demande.")
+
+
+def main():
+    st.set_page_config(
+        page_title="ControlHub AI",
+        page_icon="🧠",
+        layout="wide"
+    )
+
+    st.sidebar.title("🧠 ControlHub AI")
+    st.sidebar.write("Bureau de contrôle personnel")
+
+    page = st.sidebar.radio(
+        "Navigation",
+        [
+            "Accueil",
+            "Compétences",
+            "Projets",
+            "Objectifs",
+            "Assistant IA"
+        ]
+    )
+
+    st.sidebar.divider()
+    st.sidebar.caption("Version 0.2 — Dashboard local")
+
+    if page == "Accueil":
+        page_home()
+    elif page == "Compétences":
+        page_skills()
+    elif page == "Projets":
+        page_projects()
+    elif page == "Objectifs":
+        page_goals()
+    elif page == "Assistant IA":
+        page_ai_assistant()
 
 
 if __name__ == "__main__":
