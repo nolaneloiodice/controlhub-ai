@@ -9,6 +9,7 @@ PROFILE_FILE = DATA_DIR / "profile.json"
 SKILLS_FILE = DATA_DIR / "skills.json"
 PROJECTS_FILE = DATA_DIR / "projects.json"
 GOALS_FILE = DATA_DIR / "goals.json"
+AGENT_TASKS_FILE = DATA_DIR / "agent_tasks.json"
 LEARNING_LOG_FILE = Path("docs") / "learning-log.md"
 
 
@@ -488,6 +489,101 @@ def page_daily_session():
     )
 
 
+def page_agent_missions():
+    st.title("🧬 Missions Agents")
+
+    st.write(
+        "Cette page permet de créer et suivre les missions confiées aux futurs agents IA. "
+        "Pour l’instant, les missions sont suivies localement, sans exécution automatique."
+    )
+
+    tasks = load_json(AGENT_TASKS_FILE, [])
+
+    with st.form("add_agent_task_form"):
+        st.subheader("Créer une mission agent")
+
+        agent = st.selectbox(
+            "Agent",
+            [
+                "Agent Apprentissage",
+                "Agent Carrière",
+                "Agent GitHub",
+                "Agent LinkedIn",
+                "Agent Email",
+                "Agent Cyber",
+                "Agent Vie personnelle",
+                "Agent Automatisation"
+            ]
+        )
+
+        title = st.text_input("Titre de la mission")
+
+        priority = st.selectbox(
+            "Priorité",
+            [
+                "basse",
+                "moyenne",
+                "haute"
+            ]
+        )
+
+        status = st.selectbox(
+            "Statut",
+            [
+                "à faire",
+                "en cours",
+                "en attente",
+                "terminé"
+            ]
+        )
+
+        context = st.text_area("Contexte / instructions")
+
+        submitted = st.form_submit_button("Ajouter la mission")
+
+        if submitted:
+            if title.strip():
+                tasks.append(
+                    {
+                        "agent": agent,
+                        "title": title.strip(),
+                        "priority": priority,
+                        "status": status,
+                        "context": context.strip()
+                    }
+                )
+
+                save_json(AGENT_TASKS_FILE, tasks)
+                st.success("Mission ajoutée.")
+                st.rerun()
+            else:
+                st.error("Le titre de la mission est obligatoire.")
+
+    st.divider()
+
+    st.subheader("Missions enregistrées")
+
+    if not tasks:
+        st.write("Aucune mission agent enregistrée.")
+        return
+
+    pending_tasks = [task for task in tasks if task.get("status") != "terminé"]
+    done_tasks = [task for task in tasks if task.get("status") == "terminé"]
+
+    st.metric("Missions actives", len(pending_tasks))
+
+    for index, task in enumerate(tasks, start=1):
+        with st.expander(f"{index}. {task.get('title', 'Mission sans titre')}"):
+            st.write(f"**Agent :** {task.get('agent', 'Non défini')}")
+            st.write(f"**Priorité :** {task.get('priority', 'Non définie')}")
+            st.write(f"**Statut :** {task.get('status', 'Non défini')}")
+            st.write("**Contexte :**")
+            st.write(task.get("context", ""))
+
+    if done_tasks:
+        st.success(f"{len(done_tasks)} mission(s) terminée(s).")
+
+
 def page_command_center():
     profile, skills, projects, goals = load_all_data()
 
@@ -855,6 +951,7 @@ def main():
     [
     "Accueil",
     "Command Center",
+    "Missions Agents",
     "Compétences",
     "Projets",
     "Objectifs",
@@ -866,12 +963,14 @@ def main():
 )
 
     st.sidebar.divider()
-    st.sidebar.caption("Version 0.7 — Command Center")
+    st.sidebar.caption("Version 0.8 — Missions Agents")
 
     if page == "Accueil":
         page_home()
     elif page == "Command Center":
         page_command_center()
+    elif page == "Missions Agents":
+        page_agent_missions()
     elif page == "Compétences":
         page_skills()
     elif page == "Projets":

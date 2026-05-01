@@ -1,0 +1,9 @@
+[
+    {
+        "agent": "Agent GitHub",
+        "title": "Improve networking labs README files",
+        "priority": "high",
+        "status": "pending",
+        "context": "Review Cisco Packet Tracer projects and improve documentation."
+    }
+]
