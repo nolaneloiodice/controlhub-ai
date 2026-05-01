@@ -1,0 +1,11 @@
+{
+    "name": "Your name",
+    "main_goal": "Learn IT, networking and cybersecurity by building a personal AI command center.",
+    "level": "beginner",
+    "focus": [
+        "Linux",
+        "Networking",
+        "Cybersecurity",
+        "Python"
+    ]
+}

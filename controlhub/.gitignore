@@ -1,0 +1,13 @@
+# Données personnelles locales
+data/*.json
+
+# Python
+__pycache__/
+*.pyc
+
+# Environnements virtuels
+venv/
+.env
+
+# VS Code
+.vscode/

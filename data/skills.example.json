@@ -1,0 +1,22 @@
+[
+    {
+        "name": "Linux",
+        "level": 1
+    },
+    {
+        "name": "Networking",
+        "level": 1
+    },
+    {
+        "name": "Cybersecurity",
+        "level": 1
+    },
+    {
+        "name": "Python",
+        "level": 1
+    },
+    {
+        "name": "Git/GitHub",
+        "level": 1
+    }
+]
