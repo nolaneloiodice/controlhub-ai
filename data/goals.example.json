@@ -1,0 +1,9 @@
+[
+    {
+        "title": "Improve Linux basics",
+        "category": "Systems",
+        "priority": "high",
+        "status": "in progress",
+        "description": "Practice Linux commands, services, packages and troubleshooting."
+    }
+]

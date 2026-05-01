@@ -5,6 +5,7 @@ DATA_DIR = Path("data")
 PROFILE_FILE = DATA_DIR / "profile.json"
 SKILLS_FILE = DATA_DIR / "skills.json"
 PROJECTS_FILE = DATA_DIR / "projects.json"
+GOALS_FILE = DATA_DIR / "goals.json"
 
 DATA_DIR.mkdir(exist_ok=True)
 
@@ -128,6 +129,45 @@ def show_projects():
             print(f"   Compétences : {', '.join(project['skills'])}")
 
 
+def add_goal():
+    goals = load_json(GOALS_FILE, [])
+
+    title = input("Titre de l'objectif : ").strip()
+    category = input("Catégorie (Systèmes, Réseaux, Cyber, Python, Portfolio...) : ").strip()
+    priority = input("Priorité (basse, moyenne, haute) : ").strip()
+    description = input("Description courte : ").strip()
+
+    goal = {
+        "title": title,
+        "category": category,
+        "priority": priority,
+        "status": "en cours",
+        "description": description
+    }
+
+    goals.append(goal)
+    save_json(GOALS_FILE, goals)
+
+    print("Objectif ajouté avec succès.")
+
+
+def show_goals():
+    goals = load_json(GOALS_FILE, [])
+
+    if not goals:
+        print("Aucun objectif enregistré.")
+        return
+
+    print("\nObjectifs enregistrés :")
+
+    for index, goal in enumerate(goals, start=1):
+        print(f"\n{index}. {goal['title']}")
+        print(f"   Catégorie : {goal['category']}")
+        print(f"   Priorité : {goal['priority']}")
+        print(f"   Statut : {goal['status']}")
+        print(f"   Description : {goal['description']}")
+
+
 def generate_daily_task():
     skills = load_json(SKILLS_FILE, [])
 
@@ -152,7 +192,9 @@ def main():
         print("3. Générer ma tâche du jour")
         print("4. Voir mes projets")
         print("5. Ajouter un projet")
-        print("6. Quitter")
+        print("6. Voir mes objectifs")
+        print("7. Ajouter un objectif")
+        print("8. Quitter")
 
         choice = input("Choix : ")
 
@@ -167,6 +209,10 @@ def main():
         elif choice == "5":
             add_project()
         elif choice == "6":
+            show_goals()
+        elif choice == "7":
+            add_goal()
+        elif choice == "8":
             print("À bientôt.")
             break
         else:
