@@ -45,12 +45,22 @@ def setup_profile():
 def add_skill():
     skills = load_json(SKILLS_FILE, [])
 
-    name = input("Nom de la compétence : ")
-    level = input("Niveau actuel de 1 à 5 : ")
+    name = input("Nom de la compétence : ").strip()
+
+    while True:
+        level_input = input("Niveau actuel de 1 à 5 : ").strip()
+
+        if level_input.isdigit():
+            level = int(level_input)
+
+            if 1 <= level <= 5:
+                break
+
+        print("Erreur : entre uniquement un nombre entre 1 et 5.")
 
     skill = {
         "name": name,
-        "level": int(level)
+        "level": level
     }
 
     skills.append(skill)
