@@ -4,6 +4,7 @@ from pathlib import Path
 DATA_DIR = Path("data")
 PROFILE_FILE = DATA_DIR / "profile.json"
 SKILLS_FILE = DATA_DIR / "skills.json"
+PROJECTS_FILE = DATA_DIR / "projects.json"
 
 DATA_DIR.mkdir(exist_ok=True)
 
@@ -80,6 +81,53 @@ def show_skills():
         print(f"- {skill['name']} : {skill['level']}/5")
 
 
+def add_project():
+    projects = load_json(PROJECTS_FILE, [])
+
+    name = input("Nom du projet : ").strip()
+    category = input("Catégorie du projet (Réseaux, Systèmes, Cyber, Python, IA...) : ").strip()
+    status = input("Statut du projet (idée, en cours, terminé) : ").strip()
+    github_url = input("Lien GitHub du projet : ").strip()
+    description = input("Description courte du projet : ").strip()
+
+    skills_input = input("Compétences liées au projet, séparées par des virgules : ").strip()
+    skills = [skill.strip() for skill in skills_input.split(",") if skill.strip()]
+
+    project = {
+        "name": name,
+        "category": category,
+        "status": status,
+        "skills": skills,
+        "github_url": github_url,
+        "description": description
+    }
+
+    projects.append(project)
+    save_json(PROJECTS_FILE, projects)
+
+    print("Projet ajouté avec succès.")
+
+
+def show_projects():
+    projects = load_json(PROJECTS_FILE, [])
+
+    if not projects:
+        print("Aucun projet enregistré.")
+        return
+
+    print("\nProjets enregistrés :")
+
+    for index, project in enumerate(projects, start=1):
+        print(f"\n{index}. {project['name']}")
+        print(f"   Catégorie : {project['category']}")
+        print(f"   Statut : {project['status']}")
+        print(f"   GitHub : {project['github_url']}")
+        print(f"   Description : {project['description']}")
+
+        if project["skills"]:
+            print(f"   Compétences : {', '.join(project['skills'])}")
+
+
 def generate_daily_task():
     skills = load_json(SKILLS_FILE, [])
 
@@ -102,7 +150,9 @@ def main():
         print("1. Voir mes compétences")
         print("2. Ajouter une compétence")
         print("3. Générer ma tâche du jour")
-        print("4. Quitter")
+        print("4. Voir mes projets")
+        print("5. Ajouter un projet")
+        print("6. Quitter")
 
         choice = input("Choix : ")
 
@@ -113,6 +163,10 @@ def main():
         elif choice == "3":
             generate_daily_task()
         elif choice == "4":
+            show_projects()
+        elif choice == "5":
+            add_project()
+        elif choice == "6":
             print("À bientôt.")
             break
         else:

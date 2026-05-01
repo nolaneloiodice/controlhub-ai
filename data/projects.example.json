@@ -1,0 +1,15 @@
+[
+    {
+        "name": "Inter-VLAN Routing Lab",
+        "category": "Networking",
+        "status": "completed",
+        "skills": [
+            "VLAN",
+            "Routing",
+            "Cisco Packet Tracer",
+            "Router-on-a-Stick"
+        ],
+        "github_url": "https://github.com/username/project-name",
+        "description": "A networking lab demonstrating inter-VLAN routing using a router-on-a-stick topology."
+    }
+]
