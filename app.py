@@ -388,29 +388,139 @@ def page_notes():
         st.write("Aucune note pour le moment.")
 
 def page_ai_assistant():
+    profile, skills, projects, goals = load_all_data()
+
     st.title("🤖 Assistant IA")
 
-    st.info("Cette page préparera l’intégration IA. Pour l’instant, elle sert de prototype d’interface.")
-
-    prompt = st.text_area(
-        "Demande à ton futur assistant :",
-        placeholder="Exemple : Génère-moi une tâche du jour pour progresser en Linux et cybersécurité."
+    st.write(
+        "Cette page simule un assistant intelligent basé sur tes données locales. "
+        "Plus tard, on pourra connecter une vraie IA pour générer des réponses plus avancées."
     )
 
-    if st.button("Générer une réponse prototype"):
-        if prompt.strip():
-            st.subheader("Réponse prototype")
-            st.write(
-                "Pour l’instant, l’IA n’est pas encore connectée. "
-                "Mais cette zone servira bientôt à générer des tâches, résumés, posts LinkedIn, README et plans d’apprentissage."
+    st.divider()
+
+    action = st.selectbox(
+        "Que veux-tu générer ?",
+        [
+            "Tâche du jour",
+            "Résumé de progression",
+            "Idée de post LinkedIn",
+            "Action pour l’objectif prioritaire"
+        ]
+    )
+
+    active_goals = [goal for goal in goals if goal.get("status") != "terminé"]
+
+    high_priority_goals = [
+        goal for goal in active_goals
+        if goal.get("priority", "").lower() == "haute"
+    ]
+
+    priority_goal = None
+
+    if high_priority_goals:
+        priority_goal = high_priority_goals[0]
+    elif active_goals:
+        priority_goal = active_goals[0]
+
+    if st.button("Générer"):
+        if action == "Tâche du jour":
+            st.subheader("✅ Tâche du jour")
+
+            if priority_goal:
+                st.success(priority_goal.get("title", "Objectif prioritaire"))
+                st.write(
+                    f"Travaille 45 à 60 minutes sur cet objectif : "
+                    f"**{priority_goal.get('title', '')}**."
+                )
+                st.write(priority_goal.get("description", ""))
+
+                st.markdown("### Plan d’action")
+                st.write("1. Prépare ton environnement de travail.")
+                st.write("2. Travaille sur une seule action concrète.")
+                st.write("3. Note ce que tu as compris.")
+                st.write("4. Note ce qui bloque encore.")
+                st.write("5. Ajoute un court résumé dans l’onglet Notes.")
+
+            elif skills:
+                weakest_skill = min(skills, key=lambda skill: skill.get("level", 1))
+                st.info(f"Compétence à renforcer : {weakest_skill.get('name', 'Compétence')}")
+                st.write("Travaille 30 à 45 minutes sur cette compétence, puis ajoute une note.")
+            else:
+                st.warning("Ajoute d’abord des objectifs ou compétences pour générer une tâche pertinente.")
+
+        elif action == "Résumé de progression":
+            st.subheader("📈 Résumé de progression")
+
+            name = profile.get("name", "Nolane")
+            main_goal = profile.get("main_goal", "progresser en IT, réseaux et cybersécurité")
+
+            st.write(f"**Profil :** {name}")
+            st.write(f"**Objectif principal :** {main_goal}")
+
+            st.write(f"Tu suis actuellement **{len(skills)} compétence(s)**, **{len(projects)} projet(s)** et **{len(active_goals)} objectif(s) actif(s)**.")
+
+            if projects:
+                st.markdown("### Projets importants")
+                for project in projects[:5]:
+                    st.write(f"- **{project.get('name', 'Projet')}** — {project.get('category', 'Catégorie non définie')}")
+
+            if active_goals:
+                st.markdown("### Objectifs actifs")
+                for goal in active_goals:
+                    st.write(f"- **{goal.get('title', 'Objectif')}** — priorité {goal.get('priority', 'non définie')}")
+
+        elif action == "Idée de post LinkedIn":
+            st.subheader("💼 Idée de post LinkedIn")
+
+            st.markdown(
+                """
+Aujourd’hui, je continue à structurer ma progression en systèmes, réseaux et cybersécurité autour d’un projet personnel : **ControlHub AI**.
+
+L’objectif est de construire un tableau de bord personnel en Python pour suivre mes compétences, mes projets, mes objectifs et mes notes d’apprentissage.
+
+Ce projet me permet d’apprendre en construisant, tout en renforçant des compétences utiles pour mon parcours BTS SIO SISR :
+- Python
+- Git/GitHub
+- documentation technique
+- réseaux
+- Linux
+- cybersécurité
+- organisation de projet
+
+Prochaine étape : améliorer progressivement l’assistant pour générer des tâches, résumés et actions personnalisées à partir de mes données locales.
+                """
             )
 
-            st.markdown("### Exemple de tâche")
-            st.write(
-                "Travaille 45 minutes sur ton objectif prioritaire, puis ajoute un résumé dans ton learning log."
-            )
-        else:
-            st.warning("Écris d’abord une demande.")
+            st.info("Tu peux copier ce texte, l’adapter, puis le publier quand ton GitHub est bien propre.")
+
+        elif action == "Action pour l’objectif prioritaire":
+            st.subheader("🎯 Action recommandée")
+
+            if priority_goal:
+                st.success(priority_goal.get("title", "Objectif prioritaire"))
+                st.write(priority_goal.get("description", ""))
+
+                st.markdown("### Action concrète")
+                st.write(
+                    "Fais une session de 45 minutes uniquement sur cet objectif. "
+                    "À la fin, écris une note avec : ce que tu as fait, ce que tu as compris, ce qui reste flou."
+                )
+
+                st.markdown("### Format de note conseillé")
+                st.code(
+                    """## Session — Objectif prioritaire
+
+Sujet :
+Ce que j’ai fait :
+Ce que j’ai compris :
+Ce qui bloque :
+Prochaine action :
+""",
+                    language="markdown"
+                )
+            else:
+                st.warning("Aucun objectif actif trouvé. Ajoute un objectif dans l’onglet Objectifs.")
 
 
 def main():
@@ -437,7 +547,7 @@ def main():
 )
 
     st.sidebar.divider()
-    st.sidebar.caption("Version 0.3 — Roadmap intégrée")
+    st.sidebar.caption("Version 0.5 — Assistant local")
 
     if page == "Accueil":
         page_home()
