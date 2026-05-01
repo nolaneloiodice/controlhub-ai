@@ -1,6 +1,9 @@
 # Données personnelles locales
 data/*.json
 
+# Garder les fichiers exemples publics
+!data/*.example.json
+
 # Python
 __pycache__/
 *.pyc
