@@ -1,5 +1,6 @@
 import streamlit as st
 
+from controlhub.pages.command_center import render_command_center_page
 from controlhub.pages.notes import render_notes_page
 from controlhub.pages.missions import render_missions_page
 from controlhub.storage import (
@@ -966,7 +967,7 @@ def main():
     if page == "Accueil":
         page_home()
     elif page == "Command Center":
-        page_command_center()
+        render_command_center_page()
     elif page == "Missions Agents":
         render_missions_page()
     elif page == "Compétences":
