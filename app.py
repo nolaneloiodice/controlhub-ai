@@ -1,6 +1,8 @@
 import streamlit as st
 
 from controlhub.pages.command_center import render_command_center_page
+from controlhub.pages.skills import render_skills_page
+from controlhub.pages.projets import render_projects_page
 from controlhub.pages.goals import render_goals_page
 from controlhub.pages.notes import render_notes_page
 from controlhub.pages.missions import render_missions_page
@@ -582,9 +584,9 @@ def main():
     elif page == "Missions Agents":
         render_missions_page()
     elif page == "Compétences":
-        page_skills()
+        render_skills_page()
     elif page == "Projets":
-        page_projects()
+        render_projects_page()
     elif page == "Objectifs":
         render_goals_page()
     elif page == "Roadmap":
