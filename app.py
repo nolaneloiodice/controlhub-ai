@@ -1,13 +1,15 @@
 import streamlit as st
 
 from controlhub.pages.command_center import render_command_center_page
+from controlhub.pages.repo_builder import render_repo_builder_page
+from controlhub.pages.projects import render_projects_page
 from controlhub.pages.github import render_github_page
 from controlhub.pages.home import render_home_page
 from controlhub.pages.ai_assistant import render_ai_assistant_page
 from controlhub.pages.daily_session import render_daily_session_page
 from controlhub.pages.roadmap import render_roadmap_page
 from controlhub.pages.skills import render_skills_page
-from controlhub.pages.projets import render_projects_page
+from controlhub.pages.projects import render_projects_page
 from controlhub.pages.goals import render_goals_page
 from controlhub.pages.notes import render_notes_page
 from controlhub.pages.missions import render_missions_page
@@ -41,6 +43,7 @@ def main():
     "Command Center",
     "Missions Agents",
     "GitHub",
+    "Repo Builder",
     "Compétences",
     "Projets",
     "Objectifs",
@@ -52,7 +55,7 @@ def main():
 )
 
     st.sidebar.divider()
-    st.sidebar.caption("Version 1.1 — GitHub missions")
+    st.sidebar.caption("Version 1.2 — Repo Builder")
 
     if page == "Accueil":
         render_home_page()
@@ -62,6 +65,8 @@ def main():
         render_missions_page()
     elif page == "GitHub":
         render_github_page()
+    elif page == "Repo Builder":
+        render_repo_builder_page()
     elif page == "Compétences":
         render_skills_page()
     elif page == "Projets":
