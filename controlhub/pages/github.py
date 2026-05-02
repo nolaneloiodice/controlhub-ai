@@ -5,9 +5,41 @@ from controlhub.github_tools import (
     generate_repository_suggestions,
     get_public_repositories,
 )
+from controlhub.storage import AGENT_TASKS_FILE, load_json, save_json
 
 
 DEFAULT_GITHUB_USERNAME = "nolaneloiodice"
+
+
+def create_github_agent_mission(repo, suggestions):
+    tasks = load_json(AGENT_TASKS_FILE, [])
+
+    repo_name = repo.get("name", "repository")
+    repo_url = repo.get("url", "")
+
+    context = f"""Repository : {repo_name}
+URL : {repo_url}
+
+Objectif :
+Améliorer la présentation et la documentation de ce repository GitHub.
+
+Suggestions :
+"""
+
+    for suggestion in suggestions:
+        context += f"- {suggestion}\n"
+
+    tasks.append(
+        {
+            "agent": "Agent GitHub",
+            "title": f"Améliorer le repository {repo_name}",
+            "priority": "haute",
+            "status": "à faire",
+            "context": context,
+        }
+    )
+
+    save_json(AGENT_TASKS_FILE, tasks)
 
 
 def render_github_page():
@@ -94,6 +126,13 @@ def render_github_page():
                     value=False,
                     key=f"{repo_name}-suggestion-{index}",
                 )
+
+            if st.button(
+                "Créer une mission pour l’Agent GitHub",
+                key=f"github-mission-{repo_name}",
+            ):
+                create_github_agent_mission(repo, suggestions)
+                st.success("Mission créée dans Missions Agents.")
 
             st.markdown("### Générateur README")
 

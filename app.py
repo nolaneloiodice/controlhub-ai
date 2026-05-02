@@ -52,7 +52,7 @@ def main():
 )
 
     st.sidebar.divider()
-    st.sidebar.caption("Version 0.8 — Missions Agents")
+    st.sidebar.caption("Version 1.1 — GitHub missions")
 
     if page == "Accueil":
         render_home_page()
