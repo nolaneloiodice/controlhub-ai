@@ -61,7 +61,7 @@ def main():
 )
 
     st.sidebar.divider()
-    st.sidebar.caption("Version 1.7 — Cockpit quotidien")
+    st.sidebar.caption("Version 1.8 — IA actionnable")
 
     if page == "Accueil":
         render_home_page()

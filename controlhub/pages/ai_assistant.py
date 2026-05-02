@@ -4,12 +4,18 @@ from controlhub.ai_tools import (
     generate_ai_response,
     get_ai_provider,
     get_ai_status,
-    get_ollama_model,
     get_ollama_models,
     get_recommended_model,
 )
 from controlhub.agents import get_priority_goal, run_agent_action
-from controlhub.storage import load_all_data
+from controlhub.storage import (
+    AGENT_TASKS_FILE,
+    LEARNING_LOG_FILE,
+    TASKS_FILE,
+    load_all_data,
+    load_json,
+    save_json,
+)
 
 
 def get_task_type_from_mode(mode):
@@ -32,6 +38,59 @@ def get_task_type_from_mode(mode):
         return "decision"
 
     return "general"
+
+
+def save_ai_response_to_notes(mode, prompt, response):
+    note = f"""
+
+## Réponse IA — {mode}
+
+### Demande
+
+{prompt}
+
+### Réponse
+
+{response}
+"""
+
+    with open(LEARNING_LOG_FILE, "a", encoding="utf-8") as file:
+        file.write(note)
+
+
+def create_task_from_ai_response(mode, prompt, response):
+    tasks = load_json(TASKS_FILE, [])
+
+    tasks.append(
+        {
+            "title": f"Action IA — {mode}",
+            "category": "ControlHub AI",
+            "priority": "moyenne",
+            "status": "à faire",
+            "linked_project": "",
+            "linked_agent": "Assistant IA",
+            "due_date": "",
+            "description": f"Demande :\n{prompt}\n\nRéponse IA :\n{response}",
+        }
+    )
+
+    save_json(TASKS_FILE, tasks)
+
+
+def create_mission_from_ai_response(mode, prompt, response):
+    missions = load_json(AGENT_TASKS_FILE, [])
+
+    missions.append(
+        {
+            "agent": "Agent Automatisation",
+            "title": f"Traiter réponse IA — {mode}",
+            "priority": "moyenne",
+            "status": "à faire",
+            "context": f"Demande :\n{prompt}\n\nRéponse IA :\n{response}",
+        }
+    )
+
+    save_json(AGENT_TASKS_FILE, missions)
 
 
 def render_ai_assistant_page():
@@ -77,7 +136,6 @@ def render_ai_assistant_page():
     )
 
     task_type = get_task_type_from_mode(mode)
-
     selected_model = None
 
     if provider == "ollama":
@@ -223,12 +281,11 @@ def render_ai_assistant_page():
                 response_style=response_style,
             )
 
-        st.subheader("Réponse IA")
-        st.markdown(result)
+        st.session_state["last_ai_mode"] = mode
+        st.session_state["last_ai_prompt"] = prompt
+        st.session_state["last_ai_response"] = result
 
     if fallback_button:
-        st.subheader("Réponse locale")
-
         if mode == "Tâche du jour":
             result = run_agent_action(
                 "Générer une tâche prioritaire",
@@ -267,4 +324,45 @@ def render_ai_assistant_page():
                 "Utilise la génération IA locale pour une réponse plus personnalisée."
             )
 
-        st.markdown(result)
+        st.session_state["last_ai_mode"] = mode
+        st.session_state["last_ai_prompt"] = prompt
+        st.session_state["last_ai_response"] = result
+
+    if "last_ai_response" in st.session_state:
+        st.divider()
+
+        st.subheader("Réponse IA")
+        st.markdown(st.session_state["last_ai_response"])
+
+        st.divider()
+
+        st.subheader("Actions sur cette réponse")
+
+        action_col1, action_col2, action_col3 = st.columns(3)
+
+        with action_col1:
+            if st.button("Enregistrer dans Notes"):
+                save_ai_response_to_notes(
+                    st.session_state["last_ai_mode"],
+                    st.session_state["last_ai_prompt"],
+                    st.session_state["last_ai_response"],
+                )
+                st.success("Réponse enregistrée dans Notes.")
+
+        with action_col2:
+            if st.button("Créer une tâche"):
+                create_task_from_ai_response(
+                    st.session_state["last_ai_mode"],
+                    st.session_state["last_ai_prompt"],
+                    st.session_state["last_ai_response"],
+                )
+                st.success("Tâche créée dans Tâches / Planning.")
+
+        with action_col3:
+            if st.button("Créer une mission agent"):
+                create_mission_from_ai_response(
+                    st.session_state["last_ai_mode"],
+                    st.session_state["last_ai_prompt"],
+                    st.session_state["last_ai_response"],
+                )
+                st.success("Mission créée dans Missions Agents.")
