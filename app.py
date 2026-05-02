@@ -1,5 +1,6 @@
 import streamlit as st
 
+from controlhub.pages.notes import render_notes_page
 from controlhub.storage import (
     PROFILE_FILE,
     SKILLS_FILE,
@@ -978,7 +979,7 @@ def main():
     elif page == "Session du jour":
         page_daily_session()
     elif page == "Notes":
-        page_notes()
+        render_notes_page()
     elif page == "Assistant IA":
         page_ai_assistant()
 
