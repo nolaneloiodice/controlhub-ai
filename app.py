@@ -1,36 +1,16 @@
-import json
-from pathlib import Path
-
 import streamlit as st
 
-
-DATA_DIR = Path("data")
-PROFILE_FILE = DATA_DIR / "profile.json"
-SKILLS_FILE = DATA_DIR / "skills.json"
-PROJECTS_FILE = DATA_DIR / "projects.json"
-GOALS_FILE = DATA_DIR / "goals.json"
-AGENT_TASKS_FILE = DATA_DIR / "agent_tasks.json"
-LEARNING_LOG_FILE = Path("docs") / "learning-log.md"
-
-
-def load_json(file_path, default_data):
-    if file_path.exists():
-        with open(file_path, "r", encoding="utf-8") as file:
-            return json.load(file)
-    return default_data
-
-
-def save_json(file_path, data):
-    with open(file_path, "w", encoding="utf-8") as file:
-        json.dump(data, file, indent=4, ensure_ascii=False)
-
-
-def load_all_data():
-    profile = load_json(PROFILE_FILE, {})
-    skills = load_json(SKILLS_FILE, [])
-    projects = load_json(PROJECTS_FILE, [])
-    goals = load_json(GOALS_FILE, [])
-    return profile, skills, projects, goals
+from controlhub.storage import (
+    PROFILE_FILE,
+    SKILLS_FILE,
+    PROJECTS_FILE,
+    GOALS_FILE,
+    AGENT_TASKS_FILE,
+    LEARNING_LOG_FILE,
+    load_json,
+    save_json,
+    load_all_data,
+)
 
 
 def page_home():
@@ -582,6 +562,22 @@ def page_agent_missions():
 
     if done_tasks:
         st.success(f"{len(done_tasks)} mission(s) terminée(s).")
+
+
+def create_agent_task(agent, title, priority, status, context):
+    tasks = load_json(AGENT_TASKS_FILE, [])
+
+    tasks.append(
+        {
+            "agent": agent,
+            "title": title,
+            "priority": priority,
+            "status": status,
+            "context": context,
+        }
+    )
+
+    save_json(AGENT_TASKS_FILE, tasks)
 
 
 def page_command_center():
