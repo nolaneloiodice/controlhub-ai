@@ -1,6 +1,7 @@
 import streamlit as st
 
 from controlhub.pages.command_center import render_command_center_page
+from controlhub.pages.roadmap import render_roadmap_page
 from controlhub.pages.skills import render_skills_page
 from controlhub.pages.projets import render_projects_page
 from controlhub.pages.goals import render_goals_page
@@ -590,7 +591,7 @@ def main():
     elif page == "Objectifs":
         render_goals_page()
     elif page == "Roadmap":
-        page_roadmap()
+        render_roadmap_page()
     elif page == "Session du jour":
         page_daily_session()
     elif page == "Notes":
