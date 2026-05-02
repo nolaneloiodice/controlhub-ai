@@ -68,6 +68,9 @@ def main():
     if "current_page" not in st.session_state:
         st.session_state["current_page"] = "Pilotage"
 
+    if "pending_page" in st.session_state:
+        st.session_state["current_page"] = st.session_state.pop("pending_page")
+
     if st.session_state["current_page"] not in PAGES:
         st.session_state["current_page"] = "Pilotage"
 
@@ -84,7 +87,7 @@ def main():
     )
 
     st.sidebar.divider()
-    st.sidebar.caption("Version 1.9 — Pilotage central")
+    st.sidebar.caption("Version 2.0 — Pilotage actionnable")
 
     renderer = PAGE_RENDERERS.get(page)
 

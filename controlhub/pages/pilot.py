@@ -1,9 +1,134 @@
 import streamlit as st
 
+from controlhub.storage import (
+    AGENT_TASKS_FILE,
+    LEARNING_LOG_FILE,
+    TASKS_FILE,
+    load_json,
+    save_json,
+)
+
 
 def go_to_page(page_name):
-    st.session_state["current_page"] = page_name
+    st.session_state["pending_page"] = page_name
     st.rerun()
+
+
+def detect_category(user_request):
+    request = user_request.lower()
+
+    if any(word in request for word in ["github", "repo", "repository", "readme", "portfolio"]):
+        return "GitHub"
+
+    if any(word in request for word in ["linux", "ubuntu", "apache", "système", "systemctl"]):
+        return "Linux / Systèmes"
+
+    if any(word in request for word in ["réseau", "cisco", "vlan", "dhcp", "nat", "packet tracer"]):
+        return "Réseaux"
+
+    if any(word in request for word in ["cyber", "tryhackme", "sécurité", "soc", "logs"]):
+        return "Cybersécurité"
+
+    if any(word in request for word in ["python", "code", "debug", "streamlit"]):
+        return "Python"
+
+    if any(word in request for word in ["entretien", "alternance", "cv", "carrière", "commissariat"]):
+        return "Carrière / Alternance"
+
+    if any(word in request for word in ["linkedin", "post"]):
+        return "LinkedIn"
+
+    if any(word in request for word in ["organisation", "journée", "planning", "vie"]):
+        return "Organisation personnelle"
+
+    return "ControlHub AI"
+
+
+def detect_agent(user_request):
+    request = user_request.lower()
+
+    if any(word in request for word in ["github", "repo", "repository", "readme", "portfolio"]):
+        return "Agent GitHub"
+
+    if any(word in request for word in ["entretien", "alternance", "cv", "carrière", "linkedin", "email", "mail"]):
+        return "Agent Carrière"
+
+    if any(word in request for word in ["cyber", "tryhackme", "sécurité", "soc"]):
+        return "Agent Cyber"
+
+    if any(word in request for word in ["apprendre", "réviser", "comprendre", "cours", "lab"]):
+        return "Agent Apprentissage"
+
+    if any(word in request for word in ["automatiser", "script", "workflow"]):
+        return "Agent Automatisation"
+
+    return "Agent Vie personnelle"
+
+
+def detect_priority(user_request):
+    request = user_request.lower()
+
+    if any(word in request for word in ["urgent", "important", "priorité", "vite", "maintenant", "aujourd"]):
+        return "haute"
+
+    if any(word in request for word in ["plus tard", "un jour", "idée", "pas urgent"]):
+        return "basse"
+
+    return "moyenne"
+
+
+def create_task_from_request(user_request):
+    tasks = load_json(TASKS_FILE, [])
+
+    category = detect_category(user_request)
+    priority = detect_priority(user_request)
+    agent = detect_agent(user_request)
+
+    tasks.append(
+        {
+            "title": user_request.strip()[:80],
+            "category": category,
+            "priority": priority,
+            "status": "à faire",
+            "linked_project": "",
+            "linked_agent": agent,
+            "due_date": "",
+            "description": user_request.strip(),
+        }
+    )
+
+    save_json(TASKS_FILE, tasks)
+
+
+def create_mission_from_request(user_request):
+    missions = load_json(AGENT_TASKS_FILE, [])
+
+    agent = detect_agent(user_request)
+    priority = detect_priority(user_request)
+
+    missions.append(
+        {
+            "agent": agent,
+            "title": f"Traiter demande : {user_request.strip()[:70]}",
+            "priority": priority,
+            "status": "à faire",
+            "context": user_request.strip(),
+        }
+    )
+
+    save_json(AGENT_TASKS_FILE, missions)
+
+
+def save_note_from_request(user_request):
+    note = f"""
+
+## Note rapide — Pilotage central
+
+{user_request.strip()}
+"""
+
+    with open(LEARNING_LOG_FILE, "a", encoding="utf-8") as file:
+        file.write(note)
 
 
 def analyze_request(user_request):
@@ -174,31 +299,31 @@ def render_quick_actions():
     col1, col2, col3, col4 = st.columns(4)
 
     with col1:
-        if st.button("Quoi faire maintenant ?"):
+        if st.button("Quoi faire maintenant ?", key="quick-go-today"):
             go_to_page("Aujourd'hui")
 
-        if st.button("Créer une tâche"):
+        if st.button("Créer une tâche", key="quick-go-tasks"):
             go_to_page("Tâches / Planning")
 
     with col2:
-        if st.button("Piloter mes agents"):
+        if st.button("Piloter mes agents", key="quick-go-missions"):
             go_to_page("Missions Agents")
 
-        if st.button("Créer un repo"):
+        if st.button("Créer un repo", key="quick-go-repo-builder"):
             go_to_page("Repo Builder")
 
     with col3:
-        if st.button("Demander à l’IA"):
+        if st.button("Demander à l’IA", key="quick-go-ai"):
             go_to_page("Assistant IA")
 
-        if st.button("Écrire une note"):
+        if st.button("Écrire une note", key="quick-go-notes"):
             go_to_page("Notes")
 
     with col4:
-        if st.button("Analyser GitHub"):
+        if st.button("Analyser GitHub", key="quick-go-github"):
             go_to_page("GitHub")
 
-        if st.button("Ajouter mémoire"):
+        if st.button("Ajouter mémoire", key="quick-go-memory"):
             go_to_page("Mémoire")
 
 
@@ -206,12 +331,12 @@ def render_pilot_page():
     st.title("🎛️ Pilotage central")
 
     st.write(
-        "Décris ce que tu veux faire, et ControlHub AI t’envoie vers le bon module."
+        "Décris ce que tu veux faire, et ControlHub AI t’envoie vers le bon module "
+        "ou crée directement une tâche, une mission ou une note."
     )
 
     st.info(
-        "Cette page devient ton point central : au lieu de chercher dans tous les onglets, "
-        "tu écris ton besoin et le panel te guide."
+        "Cette page est ton point central : tu écris ton besoin, puis tu choisis l’action la plus utile."
     )
 
     st.divider()
@@ -229,11 +354,46 @@ def render_pilot_page():
         height=150,
     )
 
-    if st.button("Trouver le bon module"):
+    col1, col2, col3, col4 = st.columns(4)
+
+    with col1:
+        find_module = st.button("Trouver le bon module", key="pilot-find-module")
+
+    with col2:
+        create_task = st.button("Créer une tâche", key="pilot-create-task")
+
+    with col3:
+        create_mission = st.button("Créer une mission", key="pilot-create-mission")
+
+    with col4:
+        save_note = st.button("Enregistrer une note", key="pilot-save-note")
+
+    if find_module:
         suggestions = analyze_request(user_request)
 
         st.session_state["pilot_suggestions"] = suggestions
         st.session_state["pilot_last_request"] = user_request
+
+    if create_task:
+        if user_request.strip():
+            create_task_from_request(user_request)
+            st.success("Tâche créée dans Tâches / Planning.")
+        else:
+            st.error("Écris d’abord ta demande.")
+
+    if create_mission:
+        if user_request.strip():
+            create_mission_from_request(user_request)
+            st.success("Mission créée dans Missions Agents.")
+        else:
+            st.error("Écris d’abord ta demande.")
+
+    if save_note:
+        if user_request.strip():
+            save_note_from_request(user_request)
+            st.success("Note enregistrée dans Notes.")
+        else:
+            st.error("Écris d’abord ta demande.")
 
     if "pilot_suggestions" in st.session_state:
         st.subheader("🎯 Modules recommandés")
@@ -261,9 +421,9 @@ def render_pilot_page():
 
     st.divider()
 
-    st.subheader("🧠 Conseil")
+    st.subheader("🧠 Prochaine évolution")
 
     st.write(
-        "À terme, cette page pourra devenir un vrai routeur intelligent : "
-        "elle pourra créer directement une tâche, une mission agent, une note ou un plan IA selon ta demande."
+        "Plus tard, cette page pourra analyser ta demande avec l’IA locale et exécuter une action contrôlée : "
+        "créer une tâche enrichie, préparer une mission agent, générer une note structurée ou ouvrir directement le bon workflow."
     )
