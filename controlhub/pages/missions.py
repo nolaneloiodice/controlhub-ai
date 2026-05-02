@@ -8,6 +8,124 @@ def update_task_status(tasks, task_index, new_status):
     save_json(AGENT_TASKS_FILE, tasks)
 
 
+def generate_execution_plan(task):
+    agent = task.get("agent", "")
+    title = task.get("title", "Mission sans titre")
+    context = task.get("context", "")
+
+    if "GitHub" in agent:
+        return f"""### Plan d’exécution — {title}
+
+1. Lire le contexte de la mission.
+2. Identifier le repository ou le projet concerné.
+3. Vérifier le nom recommandé du repository.
+4. Vérifier la description GitHub proposée.
+5. Relire le README généré ou existant.
+6. Vérifier qu’aucune donnée personnelle sensible n’est présente.
+7. Préparer une checklist de publication.
+8. Attendre validation humaine avant toute création ou modification GitHub.
+
+### Points de contrôle
+
+- Le nom du repository est clair.
+- La description est professionnelle.
+- Le README explique l’objectif du projet.
+- Les compétences travaillées sont visibles.
+- Le projet est cohérent avec le portfolio.
+
+### Contexte utilisé
+
+{context}
+"""
+
+    if "Carrière" in agent:
+        return f"""### Plan d’exécution — {title}
+
+1. Lire le contexte de la mission.
+2. Identifier l’objectif carrière : CV, alternance, entretien, relance ou LinkedIn.
+3. Préparer un brouillon clair.
+4. Vérifier le ton professionnel.
+5. Adapter le message au destinataire.
+6. Relire avant validation humaine.
+7. Ne rien envoyer automatiquement.
+
+### Points de contrôle
+
+- Le message est clair.
+- Le ton est professionnel.
+- Le contenu est adapté à l’alternance BTS SIO SISR.
+- Le message valorise les projets et la progression.
+
+### Contexte utilisé
+
+{context}
+"""
+
+    if "Apprentissage" in agent:
+        return f"""### Plan d’exécution — {title}
+
+1. Identifier le sujet d’apprentissage.
+2. Définir une session de 45 à 90 minutes.
+3. Préparer les ressources nécessaires.
+4. Travailler sur une seule notion.
+5. Noter ce qui est compris.
+6. Noter ce qui reste flou.
+7. Créer une note dans le learning log.
+8. Définir la prochaine action.
+
+### Points de contrôle
+
+- La session a un objectif clair.
+- Une note est ajoutée après la session.
+- Les blocages sont identifiés.
+- Une prochaine action est définie.
+
+### Contexte utilisé
+
+{context}
+"""
+
+    if "Cyber" in agent:
+        return f"""### Plan d’exécution — {title}
+
+1. Identifier le sujet cyber concerné.
+2. Vérifier si la mission est défensive, apprentissage ou lab légal.
+3. Préparer l’environnement de travail.
+4. Lire les consignes ou notes associées.
+5. Travailler étape par étape.
+6. Noter les commandes, outils ou concepts importants.
+7. Résumer en français ce qui a été appris.
+8. Ne jamais exécuter d’action offensive hors environnement autorisé.
+
+### Points de contrôle
+
+- Le cadre est légal et contrôlé.
+- Les notions sont comprises.
+- Les notes sont documentées.
+- Les prochaines étapes sont définies.
+
+### Contexte utilisé
+
+{context}
+"""
+
+    return f"""### Plan d’exécution — {title}
+
+1. Lire le contexte de la mission.
+2. Définir l’objectif concret.
+3. Découper la mission en petites étapes.
+4. Exécuter ou préparer uniquement ce qui est sûr.
+5. Documenter le résultat.
+6. Identifier les blocages.
+7. Définir la prochaine action.
+8. Attendre validation humaine avant toute action externe.
+
+### Contexte utilisé
+
+{context}
+"""
+
+
 def render_task_card(tasks, task, index, key_prefix):
     title = task.get("title", "Mission sans titre")
     agent = task.get("agent", "Agent non défini")
@@ -44,6 +162,26 @@ def render_task_card(tasks, task, index, key_prefix):
                 update_task_status(tasks, index, "à faire")
                 st.success("Mission remise à faire.")
                 st.rerun()
+
+        st.divider()
+
+        st.markdown("### Exécution agent")
+
+        if st.button(
+            "Générer un plan d’exécution",
+            key=f"{key_prefix}-execution-plan-{index}",
+        ):
+            plan = generate_execution_plan(task)
+            st.session_state[f"{key_prefix}-execution-plan-result-{index}"] = plan
+
+        plan_key = f"{key_prefix}-execution-plan-result-{index}"
+
+        if plan_key in st.session_state:
+            st.markdown(st.session_state[plan_key])
+
+            st.info(
+                "Ce plan est une aide à l’exécution. Aucune action externe n’est lancée automatiquement."
+            )
 
 
 def render_missions_page():

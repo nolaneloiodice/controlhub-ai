@@ -1,6 +1,11 @@
 import streamlit as st
 
-from controlhub.storage import PROJECTS_FILE, load_json
+from controlhub.storage import (
+    AGENT_TASKS_FILE,
+    PROJECTS_FILE,
+    load_json,
+    save_json,
+)
 
 
 def slugify_project_name(name):
@@ -142,6 +147,52 @@ def generate_file_structure(project):
 """
 
 
+def create_repo_builder_mission(project, repo_name, repo_description, structure, readme):
+    tasks = load_json(AGENT_TASKS_FILE, [])
+
+    project_name = project.get("name", "Projet sans nom")
+    project_category = project.get("category", "Non définie")
+    project_status = project.get("status", "Non défini")
+
+    context = f"""Projet source : {project_name}
+Catégorie : {project_category}
+Statut : {project_status}
+
+Objectif :
+Préparer la création d’un repository GitHub à partir de ce projet ControlHub AI.
+
+Nom recommandé du repository :
+{repo_name}
+
+Description GitHub recommandée :
+{repo_description}
+
+Structure recommandée :
+{structure}
+
+README proposé :
+{readme}
+
+Consignes :
+- Ne rien créer automatiquement sans validation humaine.
+- Vérifier qu’aucune donnée personnelle sensible n’est présente.
+- Adapter le README avant publication si nécessaire.
+- Préparer ensuite la création du repository GitHub.
+"""
+
+    tasks.append(
+        {
+            "agent": "Agent GitHub",
+            "title": f"Créer/préparer repository GitHub pour {project_name}",
+            "priority": "haute",
+            "status": "à faire",
+            "context": context,
+        }
+    )
+
+    save_json(AGENT_TASKS_FILE, tasks)
+
+
 def render_repo_builder_page():
     st.title("🏗️ Repo Builder")
 
@@ -218,6 +269,26 @@ def render_repo_builder_page():
     st.checkbox("Le README est adapté")
     st.checkbox("Aucune donnée personnelle sensible n’est incluse")
     st.checkbox("Le projet est prêt à être publié ou préparé localement")
+
+    st.divider()
+
+    st.subheader("Mission Agent GitHub")
+
+    st.write(
+        "Tu peux transformer ce plan en mission pour l’Agent GitHub. "
+        "L’agent pourra ensuite préparer la création du repository, sous validation humaine."
+    )
+
+    if st.button("Créer une mission Agent GitHub depuis ce repo plan"):
+        create_repo_builder_mission(
+            project=selected_project,
+            repo_name=repo_name,
+            repo_description=repo_description,
+            structure=structure,
+            readme=readme,
+        )
+
+        st.success("Mission créée dans Missions Agents.")
 
     st.info(
         "Étape future : connecter l’API GitHub pour créer le repository automatiquement après validation."

@@ -55,7 +55,7 @@ def main():
 )
 
     st.sidebar.divider()
-    st.sidebar.caption("Version 1.2 — Repo Builder")
+    st.sidebar.caption("Version 1.3 — AI Core")
 
     if page == "Accueil":
         render_home_page()
