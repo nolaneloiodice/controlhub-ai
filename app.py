@@ -1,6 +1,7 @@
 import streamlit as st
 
 from controlhub.pages.command_center import render_command_center_page
+from controlhub.pages.tasks import render_tasks_page
 from controlhub.pages.memory import render_memory_page
 from controlhub.pages.repo_builder import render_repo_builder_page
 from controlhub.pages.projects import render_projects_page
@@ -43,6 +44,7 @@ def main():
     "Accueil",
     "Command Center",
     "Missions Agents",
+    "Tâches / Planning",
     "GitHub",
     "Repo Builder",
     "Compétences",
@@ -57,7 +59,7 @@ def main():
 )
 
     st.sidebar.divider()
-    st.sidebar.caption("Version 1.5 — Mémoire locale")
+    st.sidebar.caption("Version 1.6 — Tâches et planning")
 
     if page == "Accueil":
         render_home_page()
@@ -65,6 +67,8 @@ def main():
         render_command_center_page()
     elif page == "Missions Agents":
         render_missions_page()
+    elif page == "Tâches / Planning":
+        render_tasks_page()
     elif page == "GitHub":
         render_github_page()
     elif page == "Repo Builder":

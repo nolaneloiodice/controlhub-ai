@@ -1,0 +1,12 @@
+[
+    {
+        "title": "Reprendre le lab Ubuntu Apache",
+        "category": "Linux / Systèmes",
+        "priority": "haute",
+        "status": "à faire",
+        "linked_project": "Ubuntu Web Server Lab",
+        "linked_agent": "Agent Apprentissage",
+        "due_date": "",
+        "description": "Vérifier Apache, systemctl, ports, pare-feu et accès navigateur."
+    }
+]

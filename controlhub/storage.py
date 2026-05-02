@@ -10,6 +10,7 @@ SKILLS_FILE = DATA_DIR / "skills.json"
 PROJECTS_FILE = DATA_DIR / "projects.json"
 GOALS_FILE = DATA_DIR / "goals.json"
 AGENT_TASKS_FILE = DATA_DIR / "agent_tasks.json"
+TASKS_FILE = DATA_DIR / "tasks.json"
 MEMORY_FILE = DATA_DIR / "memory.json"
 LEARNING_LOG_FILE = DOCS_DIR / "learning-log.md"
 
@@ -17,7 +18,12 @@ LEARNING_LOG_FILE = DOCS_DIR / "learning-log.md"
 def load_json(file_path, default_data):
     if file_path.exists():
         with open(file_path, "r", encoding="utf-8") as file:
-            return json.load(file)
+            content = file.read().strip()
+
+            if not content:
+                return default_data
+
+            return json.loads(content)
 
     return default_data
 
