@@ -1,6 +1,7 @@
 import streamlit as st
 
 from controlhub.pages.command_center import render_command_center_page
+from controlhub.pages.memory import render_memory_page
 from controlhub.pages.repo_builder import render_repo_builder_page
 from controlhub.pages.projects import render_projects_page
 from controlhub.pages.github import render_github_page
@@ -50,12 +51,13 @@ def main():
     "Roadmap",
     "Session du jour",
     "Notes",
-    "Assistant IA"
+    "Assistant IA",
+    "Mémoire",
     ]
 )
 
     st.sidebar.divider()
-    st.sidebar.caption("Version 1.3 — AI Core")
+    st.sidebar.caption("Version 1.5 — Mémoire locale")
 
     if page == "Accueil":
         render_home_page()
@@ -81,6 +83,8 @@ def main():
         render_notes_page()
     elif page == "Assistant IA":
         render_ai_assistant_page()
+    elif page == "Mémoire":
+        render_memory_page()
 
 if __name__ == "__main__":
     main()

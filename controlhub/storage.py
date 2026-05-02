@@ -10,6 +10,7 @@ SKILLS_FILE = DATA_DIR / "skills.json"
 PROJECTS_FILE = DATA_DIR / "projects.json"
 GOALS_FILE = DATA_DIR / "goals.json"
 AGENT_TASKS_FILE = DATA_DIR / "agent_tasks.json"
+MEMORY_FILE = DATA_DIR / "memory.json"
 LEARNING_LOG_FILE = DOCS_DIR / "learning-log.md"
 
 
