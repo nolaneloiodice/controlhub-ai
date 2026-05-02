@@ -1,10 +1,12 @@
 import streamlit as st
 
-from controlhub.ai_tools import generate_ai_response, get_ollama_model, get_ollama_models
+from controlhub.ai_tools import (
+    generate_ai_response,
+    get_ollama_models,
+    get_recommended_model,
+)
 from controlhub.storage import (
     AGENT_TASKS_FILE,
-    GOALS_FILE,
-    PROJECTS_FILE,
     TASKS_FILE,
     load_all_data,
     load_json,
@@ -31,7 +33,7 @@ def get_open_items(items):
     ]
 
 
-def format_items_for_prompt(title, items, limit=8):
+def format_items_for_prompt(title, items, limit=6):
     lines = [title]
 
     if not items:
@@ -49,7 +51,7 @@ def format_items_for_prompt(title, items, limit=8):
             f"- {item.get('title', item.get('name', 'Sans titre'))} "
             f"| priorité : {item.get('priority', 'non définie')} "
             f"| statut : {item.get('status', 'non défini')} "
-            f"| description : {item.get('description', item.get('context', ''))}"
+            f"| description : {item.get('description', item.get('context', ''))[:500]}"
         )
 
     return "\n".join(lines)
@@ -73,7 +75,7 @@ def render_today_page():
         mission for mission in open_missions if mission.get("priority") == "haute"
     ]
 
-    st.title("📍 Aujourd’hui")
+    st.title("📍 Aujourd'hui")
 
     st.write(
         "Cette page sert à décider rapidement quoi faire maintenant. "
@@ -181,18 +183,36 @@ def render_today_page():
     selected_model = None
 
     if available_models:
-        default_model = get_ollama_model()
+        model_options = ["Auto"] + available_models
 
-        if default_model in available_models:
-            default_index = available_models.index(default_model)
-        else:
-            default_index = 0
-
-        selected_model = st.selectbox(
+        selected_model_choice = st.selectbox(
             "Modèle IA local",
-            available_models,
-            index=default_index,
+            model_options,
+            index=0,
         )
+
+        recommended_model = get_recommended_model(
+            task_type="planning",
+            available_models=available_models,
+        )
+
+        if selected_model_choice == "Auto":
+            selected_model = None
+            st.info(f"Mode Auto : ControlHub utilisera probablement {recommended_model}.")
+        else:
+            selected_model = selected_model_choice
+
+    response_style = st.selectbox(
+        "Style de réponse",
+        [
+            "Rapide",
+            "Normal",
+            "Détaillé",
+        ],
+        index=0,
+    )
+
+    st.caption("Pour le cockpit quotidien, le mode Rapide est recommandé.")
 
     session_duration = st.selectbox(
         "Temps disponible aujourd’hui",
@@ -234,9 +254,23 @@ def render_today_page():
         tasks_context = format_items_for_prompt("Tâches ouvertes :", open_tasks)
         missions_context = format_items_for_prompt("Missions agents ouvertes :", open_missions)
         goals_context = format_items_for_prompt("Objectifs actifs :", open_goals)
+        projects_context = format_items_for_prompt("Projets :", projects)
 
         prompt = f"""
 Tu dois générer un plan de journée optimisé pour moi.
+
+Modules existants dans ControlHub AI :
+- Aujourd'hui
+- Tâches / Planning
+- Missions Agents
+- Projets
+- Objectifs
+- Notes
+- Session du jour
+- GitHub
+- Repo Builder
+- Mémoire
+- Assistant IA
 
 Contraintes :
 - Temps disponible : {session_duration}
@@ -246,6 +280,7 @@ Contraintes :
 Règles :
 - Ne propose pas d’outil externe.
 - Utilise ControlHub AI comme centre de contrôle.
+- Ne dis pas de créer un module qui existe déjà.
 - Propose un plan réaliste.
 - Donne une seule priorité principale.
 - Donne une deuxième action optionnelle.
@@ -260,8 +295,7 @@ Données disponibles :
 
 {goals_context}
 
-Projets enregistrés :
-{format_items_for_prompt("Projets :", projects)}
+{projects_context}
 """
 
         with st.spinner("Génération du plan optimisé avec l’IA locale..."):
@@ -272,6 +306,8 @@ Projets enregistrés :
                 projects,
                 goals,
                 model_name=selected_model,
+                task_type="planning",
+                response_style=response_style,
             )
 
         st.subheader("Plan optimisé")

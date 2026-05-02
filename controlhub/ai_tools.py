@@ -1,13 +1,19 @@
 import os
+from pathlib import Path
 
 import requests
 from dotenv import load_dotenv
-from openai import OpenAI
+
+try:
+    from openai import OpenAI
+except ImportError:
+    OpenAI = None
 
 from controlhub.memory_tools import format_memory_for_ai
 
 
 load_dotenv()
+load_dotenv(Path("controlhub") / ".env", override=False)
 
 
 def get_ai_provider():
@@ -76,6 +82,87 @@ def get_ai_status():
     return "Aucun fournisseur IA valide configuré."
 
 
+def find_model_by_keywords(models, keywords):
+    for model in models:
+        model_lower = model.lower()
+
+        for keyword in keywords:
+            if keyword.lower() in model_lower:
+                return model
+
+    return None
+
+
+def get_recommended_model(task_type="general", available_models=None):
+    models = available_models or get_ollama_models()
+
+    if not models:
+        return get_ollama_model()
+
+    task_type = task_type.lower()
+
+    if task_type in ["code", "debug", "python", "github", "readme"]:
+        coder_model = find_model_by_keywords(
+            models,
+            ["qwen2.5-coder", "coder", "code"],
+        )
+        if coder_model:
+            return coder_model
+
+    general_model = find_model_by_keywords(
+        models,
+        ["llama3.2:3b", "llama3.2", "llama"],
+    )
+
+    if general_model:
+        return general_model
+
+    return models[0]
+
+
+def get_response_style_instruction(response_style):
+    style = response_style.lower()
+
+    if style in ["rapide", "fast"]:
+        return """
+Style de réponse :
+- Réponse courte.
+- Maximum 8 à 12 lignes.
+- Une seule priorité principale.
+- Pas d'explication inutile.
+- Donne directement les actions à faire.
+"""
+
+    if style in ["détaillé", "detaille", "detailed"]:
+        return """
+Style de réponse :
+- Réponse détaillée.
+- Explique le raisonnement.
+- Donne un plan structuré.
+- Ajoute les risques, limites et prochaines étapes.
+"""
+
+    return """
+Style de réponse :
+- Réponse structurée.
+- Sois clair et pratique.
+- Donne un plan actionnable.
+- Évite les longs paragraphes inutiles.
+"""
+
+
+def get_num_predict(response_style):
+    style = response_style.lower()
+
+    if style in ["rapide", "fast"]:
+        return 350
+
+    if style in ["détaillé", "detaille", "detailed"]:
+        return 1200
+
+    return 700
+
+
 def build_context(profile, skills, projects, goals):
     context_lines = []
 
@@ -84,6 +171,23 @@ def build_context(profile, skills, projects, goals):
     context_lines.append(
         f"- Objectif principal : {profile.get('main_goal', 'Non défini')}"
     )
+
+    context_lines.append("\nModules ControlHub AI déjà existants :")
+    context_lines.append("- Accueil")
+    context_lines.append("- Aujourd'hui")
+    context_lines.append("- Command Center")
+    context_lines.append("- Missions Agents")
+    context_lines.append("- Tâches / Planning")
+    context_lines.append("- GitHub")
+    context_lines.append("- Repo Builder")
+    context_lines.append("- Compétences")
+    context_lines.append("- Projets")
+    context_lines.append("- Objectifs")
+    context_lines.append("- Roadmap")
+    context_lines.append("- Session du jour")
+    context_lines.append("- Notes")
+    context_lines.append("- Assistant IA")
+    context_lines.append("- Mémoire")
 
     context_lines.append("\nCompétences suivies :")
     if skills:
@@ -128,33 +232,39 @@ def build_system_prompt():
     return """
 Tu es l'assistant IA local intégré de ControlHub AI.
 
+ControlHub AI est le centre de contrôle personnel de Nolane.
+Tu dois aider à organiser sa vie, ses projets, son apprentissage, ses objectifs, ses tâches, ses missions agents, GitHub, LinkedIn, emails, planning et automatisations.
+
+Règles importantes :
+- ControlHub AI est un outil personnel déjà existant.
+- Ne parle pas d'utilisateurs sauf si Nolane demande de transformer ControlHub AI en produit public.
+- Par défaut, parle de "toi", "ton panel", "ton usage personnel".
+- Ne propose pas Trello, Asana, Notion ou d'autres outils externes comme première solution.
+- Privilégie les modules internes de ControlHub AI.
+- Ne dis jamais de créer un module qui existe déjà.
+- Si une fonctionnalité existe déjà, propose de l'utiliser ou de l'améliorer.
+- Si une fonctionnalité n'existe pas encore, dis clairement "à créer" ou "future évolution".
+- Ne jamais inventer de forum, communauté, bouton, intégration ou fonctionnalité inexistante.
+- Toujours distinguer : ce qui existe déjà, ce qui est en cours, ce qui est une idée future.
+- Donne des actions réalisables directement dans le panel actuel.
+- Évite les phrases vagues comme "consulte les ressources officielles" sans action concrète.
+- Pour chaque recommandation, propose une action courte, utile et vérifiable.
+- Ne prétends jamais avoir exécuté une action externe si tu as seulement rédigé une proposition.
+
 Ton rôle :
-- aider l'utilisateur à organiser sa vie, ses projets, ses objectifs et son apprentissage ;
-- comprendre que ControlHub AI doit devenir le centre principal, pas seulement recommander des outils externes ;
-- privilégier les solutions intégrées dans ControlHub AI quand c’est cohérent ;
-- éviter de proposer Trello, Asana, Notion ou autres outils externes comme première solution, sauf si l'utilisateur le demande ;
-- proposer des évolutions concrètes du panel plutôt que de déléguer l'organisation à une autre plateforme ;
-- l’aider à progresser en BTS SIO SISR, systèmes, réseaux, cybersécurité, Python et IA ;
+- aider Nolane à progresser en BTS SIO SISR, systèmes, réseaux, cybersécurité, Python et IA ;
 - transformer ses projets en actions concrètes ;
 - aider à préparer GitHub, LinkedIn, emails, entretiens, notes et décisions ;
 - utiliser la mémoire personnelle pour adapter tes réponses ;
 - proposer des choix optimisés, mais toujours expliquer simplement ;
-- rester prudent avec toute action externe ;
-- ne jamais prétendre avoir exécuté une action si tu as seulement rédigé une proposition.
-- ne jamais inventer de plateforme, forum, communauté ou fonctionnalité qui n’existe pas encore ;
-- si une fonctionnalité n’existe pas encore dans ControlHub AI, proposer de la créer comme module futur ;
-- toujours distinguer : ce qui existe déjà, ce qui est en cours, ce qui est une idée future ;
-- donner des actions réalisables directement dans le panel actuel ;
-- éviter les phrases vagues comme "consulte les ressources officielles" sans préciser quoi faire concrètement ;
-- pour chaque recommandation, proposer une action courte, utile et vérifiable ;
-- tu dois considérer que ControlHub AI est un outil personnel déjà existant avec des modules réels. Ne propose jamais une action qui suppose une fonctionnalité inexistante. Si une fonctionnalité n’existe pas, formule-la comme “à créer” et propose une étape de développement concrète.
-- ne parle pas d’“utilisateurs” sauf si l’utilisateur demande de transformer ControlHub AI en produit public. Par défaut, parle de “toi”, “ton panel”, “ton usage personnel”.
+- rester prudent avec toute action externe.
+
 Réponds en français.
 Sois direct, pratique, structuré et orienté action.
 """
 
 
-def generate_with_ollama(prompt, model_name=None):
+def generate_with_ollama(prompt, model_name=None, response_style="normal"):
     url = f"{get_ollama_base_url()}/api/generate"
 
     selected_model = model_name or get_ollama_model()
@@ -163,6 +273,11 @@ def generate_with_ollama(prompt, model_name=None):
         "model": selected_model,
         "prompt": prompt,
         "stream": False,
+        "keep_alive": "10m",
+        "options": {
+            "temperature": 0.4,
+            "num_predict": get_num_predict(response_style),
+        },
     }
 
     response = requests.post(url, json=payload, timeout=180)
@@ -180,7 +295,15 @@ def generate_with_openai(prompt):
 
 Aucune clé API OpenAI n’a été trouvée.
 
-Utilise Ollama en local ou ajoute `OPENAI_API_KEY` dans `.env`.
+Utilise Ollama en local ou ajoute OPENAI_API_KEY dans .env.
+"""
+
+    if OpenAI is None:
+        return """### Package OpenAI manquant
+
+Installe le package avec :
+
+py -m pip install openai
 """
 
     client = OpenAI()
@@ -194,12 +317,31 @@ Utilise Ollama en local ou ajoute `OPENAI_API_KEY` dans `.env`.
     return response.output_text
 
 
-def generate_ai_response(user_prompt, profile, skills, projects, goals, model_name=None):
+def generate_ai_response(
+    user_prompt,
+    profile,
+    skills,
+    projects,
+    goals,
+    model_name=None,
+    task_type="general",
+    response_style="normal",
+):
     context = build_context(profile, skills, projects, goals)
     system_prompt = build_system_prompt()
+    style_instruction = get_response_style_instruction(response_style)
+
+    provider = get_ai_provider()
+
+    if provider == "ollama":
+        selected_model = model_name or get_recommended_model(task_type)
+    else:
+        selected_model = model_name
 
     final_prompt = f"""
 {system_prompt}
+
+{style_instruction}
 
 Contexte ControlHub AI :
 
@@ -209,8 +351,6 @@ Demande utilisateur :
 
 {user_prompt}
 """
-
-    provider = get_ai_provider()
 
     try:
         if provider == "ollama":
@@ -222,26 +362,30 @@ ControlHub AI est configuré pour utiliser Ollama, mais Ollama ne répond pas.
 Vérifie :
 1. qu’Ollama est lancé ;
 2. que le modèle est installé ;
-3. que `OLLAMA_BASE_URL=http://localhost:11434` est dans `.env`.
+3. que OLLAMA_BASE_URL=http://localhost:11434 est dans .env.
 
 Commande utile :
 
-`ollama run llama3.2:3b`
+ollama run llama3.2:3b
 """
-            return generate_with_ollama(final_prompt, model_name=model_name)
+            return generate_with_ollama(
+                final_prompt,
+                model_name=selected_model,
+                response_style=response_style,
+            )
 
         if provider == "openai":
             return generate_with_openai(final_prompt)
 
         return """### Fournisseur IA invalide
 
-Dans `.env`, utilise :
+Dans .env, utilise :
 
-`AI_PROVIDER=ollama`
+AI_PROVIDER=ollama
 
 ou
 
-`AI_PROVIDER=openai`
+AI_PROVIDER=openai
 """
 
     except Exception as error:

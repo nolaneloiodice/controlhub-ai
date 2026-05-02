@@ -6,9 +6,32 @@ from controlhub.ai_tools import (
     get_ai_status,
     get_ollama_model,
     get_ollama_models,
+    get_recommended_model,
 )
 from controlhub.agents import get_priority_goal, run_agent_action
 from controlhub.storage import load_all_data
+
+
+def get_task_type_from_mode(mode):
+    if mode == "Code / Debug Python":
+        return "code"
+
+    if mode == "Préparation GitHub":
+        return "github"
+
+    if mode == "Idée de post LinkedIn":
+        return "writing"
+
+    if mode == "Préparation entretien":
+        return "career"
+
+    if mode == "Organisation de vie":
+        return "planning"
+
+    if mode == "Décision optimisée":
+        return "decision"
+
+    return "general"
 
 
 def render_ai_assistant_page():
@@ -37,36 +60,6 @@ def render_ai_assistant_page():
 
     st.divider()
 
-    selected_model = None
-
-    if provider == "ollama":
-        available_models = get_ollama_models()
-
-        if available_models:
-            default_model = get_ollama_model()
-
-            if default_model in available_models:
-                default_index = available_models.index(default_model)
-            else:
-                default_index = 0
-
-            selected_model = st.selectbox(
-                "Modèle IA local",
-                available_models,
-                index=default_index,
-            )
-
-            if "coder" in selected_model.lower():
-                st.info("Modèle orienté code / technique sélectionné.")
-            elif "llama" in selected_model.lower():
-                st.info("Modèle général sélectionné.")
-            else:
-                st.info("Modèle local sélectionné.")
-        else:
-            st.warning("Aucun modèle Ollama détecté. Vérifie `ollama list`.")
-
-    st.divider()
-
     mode = st.selectbox(
         "Mode",
         [
@@ -83,11 +76,63 @@ def render_ai_assistant_page():
         ],
     )
 
+    task_type = get_task_type_from_mode(mode)
+
+    selected_model = None
+
+    if provider == "ollama":
+        available_models = get_ollama_models()
+
+        if available_models:
+            model_options = ["Auto"] + available_models
+
+            selected_model_choice = st.selectbox(
+                "Modèle IA local",
+                model_options,
+                index=0,
+            )
+
+            recommended_model = get_recommended_model(
+                task_type=task_type,
+                available_models=available_models,
+            )
+
+            if selected_model_choice == "Auto":
+                selected_model = None
+                st.info(f"Mode Auto : ControlHub utilisera probablement {recommended_model}.")
+            else:
+                selected_model = selected_model_choice
+
+                if "coder" in selected_model.lower():
+                    st.info("Modèle orienté code / technique sélectionné.")
+                elif "llama" in selected_model.lower():
+                    st.info("Modèle général sélectionné.")
+                else:
+                    st.info("Modèle local sélectionné.")
+        else:
+            st.warning("Aucun modèle Ollama détecté. Vérifie ollama list.")
+
+    response_style = st.selectbox(
+        "Style de réponse",
+        [
+            "Rapide",
+            "Normal",
+            "Détaillé",
+        ],
+        index=1,
+    )
+
+    st.caption(
+        "Rapide = plus court et plus fluide. Détaillé = plus complet mais plus lent."
+    )
+
+    st.divider()
+
     default_prompt = ""
 
     if mode == "Tâche du jour":
         default_prompt = (
-            "Analyse mes objectifs, projets et compétences. "
+            "Analyse mes objectifs, projets, tâches et compétences. "
             "Génère une tâche du jour claire, réaliste, avec une durée conseillée et un plan d’action."
         )
 
@@ -174,6 +219,8 @@ def render_ai_assistant_page():
                 projects,
                 goals,
                 model_name=selected_model,
+                task_type=task_type,
+                response_style=response_style,
             )
 
         st.subheader("Réponse IA")
