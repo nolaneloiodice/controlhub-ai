@@ -1,6 +1,7 @@
 import streamlit as st
 
 from controlhub.pages.command_center import render_command_center_page
+from controlhub.pages.github import render_github_page
 from controlhub.pages.home import render_home_page
 from controlhub.pages.ai_assistant import render_ai_assistant_page
 from controlhub.pages.daily_session import render_daily_session_page
@@ -39,6 +40,7 @@ def main():
     "Accueil",
     "Command Center",
     "Missions Agents",
+    "GitHub",
     "Compétences",
     "Projets",
     "Objectifs",
@@ -58,6 +60,8 @@ def main():
         render_command_center_page()
     elif page == "Missions Agents":
         render_missions_page()
+    elif page == "GitHub":
+        render_github_page()
     elif page == "Compétences":
         render_skills_page()
     elif page == "Projets":
