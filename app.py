@@ -1,47 +1,25 @@
 import streamlit as st
 
-from controlhub.pages.command_center import render_command_center_page
-from controlhub.pages.today import render_today_page
-from controlhub.pages.tasks import render_tasks_page
-from controlhub.pages.memory import render_memory_page
-from controlhub.pages.repo_builder import render_repo_builder_page
-from controlhub.pages.projects import render_projects_page
-from controlhub.pages.github import render_github_page
-from controlhub.pages.home import render_home_page
 from controlhub.pages.ai_assistant import render_ai_assistant_page
+from controlhub.pages.command_center import render_command_center_page
 from controlhub.pages.daily_session import render_daily_session_page
+from controlhub.pages.github import render_github_page
+from controlhub.pages.goals import render_goals_page
+from controlhub.pages.home import render_home_page
+from controlhub.pages.memory import render_memory_page
+from controlhub.pages.missions import render_missions_page
+from controlhub.pages.notes import render_notes_page
+from controlhub.pages.pilot import render_pilot_page
+from controlhub.pages.projects import render_projects_page
+from controlhub.pages.repo_builder import render_repo_builder_page
 from controlhub.pages.roadmap import render_roadmap_page
 from controlhub.pages.skills import render_skills_page
-from controlhub.pages.projects import render_projects_page
-from controlhub.pages.goals import render_goals_page
-from controlhub.pages.notes import render_notes_page
-from controlhub.pages.missions import render_missions_page
-from controlhub.storage import (
-    PROFILE_FILE,
-    SKILLS_FILE,
-    PROJECTS_FILE,
-    GOALS_FILE,
-    AGENT_TASKS_FILE,
-    LEARNING_LOG_FILE,
-    load_json,
-    save_json,
-    load_all_data,
-)
+from controlhub.pages.tasks import render_tasks_page
+from controlhub.pages.today import render_today_page
 
 
-def main():
-    st.set_page_config(
-        page_title="ControlHub AI",
-        page_icon="🧠",
-        layout="wide"
-    )
-
-    st.sidebar.title("🧠 ControlHub AI")
-    st.sidebar.write("Bureau de contrôle personnel")
-
-    page = st.sidebar.radio(
-    "Navigation",
-    [
+PAGES = [
+    "Pilotage",
     "Accueil",
     "Aujourd'hui",
     "Command Center",
@@ -57,42 +35,64 @@ def main():
     "Notes",
     "Assistant IA",
     "Mémoire",
-    ]
-)
+]
+
+
+PAGE_RENDERERS = {
+    "Pilotage": render_pilot_page,
+    "Accueil": render_home_page,
+    "Aujourd'hui": render_today_page,
+    "Command Center": render_command_center_page,
+    "Missions Agents": render_missions_page,
+    "Tâches / Planning": render_tasks_page,
+    "GitHub": render_github_page,
+    "Repo Builder": render_repo_builder_page,
+    "Compétences": render_skills_page,
+    "Projets": render_projects_page,
+    "Objectifs": render_goals_page,
+    "Roadmap": render_roadmap_page,
+    "Session du jour": render_daily_session_page,
+    "Notes": render_notes_page,
+    "Assistant IA": render_ai_assistant_page,
+    "Mémoire": render_memory_page,
+}
+
+
+def main():
+    st.set_page_config(
+        page_title="ControlHub AI",
+        page_icon="🧠",
+        layout="wide",
+    )
+
+    if "current_page" not in st.session_state:
+        st.session_state["current_page"] = "Pilotage"
+
+    if st.session_state["current_page"] not in PAGES:
+        st.session_state["current_page"] = "Pilotage"
+
+    st.sidebar.title("🧠 ControlHub AI")
+    st.sidebar.write("Bureau de contrôle personnel")
+
+    st.sidebar.markdown("### Navigation")
+
+    page = st.sidebar.radio(
+        "Navigation",
+        PAGES,
+        key="current_page",
+        label_visibility="collapsed",
+    )
 
     st.sidebar.divider()
-    st.sidebar.caption("Version 1.8 — IA actionnable")
+    st.sidebar.caption("Version 1.9 — Pilotage central")
 
-    if page == "Accueil":
-        render_home_page()
-    elif page == "Aujourd'hui":
-        render_today_page()
-    elif page == "Command Center":
-        render_command_center_page()
-    elif page == "Missions Agents":
-        render_missions_page()
-    elif page == "Tâches / Planning":
-        render_tasks_page()
-    elif page == "GitHub":
-        render_github_page()
-    elif page == "Repo Builder":
-        render_repo_builder_page()
-    elif page == "Compétences":
-        render_skills_page()
-    elif page == "Projets":
-        render_projects_page()
-    elif page == "Objectifs":
-        render_goals_page()
-    elif page == "Roadmap":
-        render_roadmap_page()
-    elif page == "Session du jour":
-        render_daily_session_page()
-    elif page == "Notes":
-        render_notes_page()
-    elif page == "Assistant IA":
-        render_ai_assistant_page()
-    elif page == "Mémoire":
-        render_memory_page()
+    renderer = PAGE_RENDERERS.get(page)
+
+    if renderer:
+        renderer()
+    else:
+        render_pilot_page()
+
 
 if __name__ == "__main__":
     main()
