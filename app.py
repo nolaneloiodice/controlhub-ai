@@ -1,6 +1,7 @@
 import streamlit as st
 
 from controlhub.pages.notes import render_notes_page
+from controlhub.pages.missions import render_missions_page
 from controlhub.storage import (
     PROFILE_FILE,
     SKILLS_FILE,
@@ -967,7 +968,7 @@ def main():
     elif page == "Command Center":
         page_command_center()
     elif page == "Missions Agents":
-        page_agent_missions()
+        render_missions_page()
     elif page == "Compétences":
         page_skills()
     elif page == "Projets":
