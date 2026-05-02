@@ -1,11 +1,50 @@
 import streamlit as st
 
-from controlhub.storage import AGENT_TASKS_FILE, load_json, save_json
+from controlhub.storage import AGENT_TASKS_FILE, TASKS_FILE, load_json, save_json
 
 
 def update_task_status(tasks, task_index, new_status):
     tasks[task_index]["status"] = new_status
     save_json(AGENT_TASKS_FILE, tasks)
+
+
+def create_task_from_mission(task):
+    tasks = load_json(TASKS_FILE, [])
+
+    agent = task.get("agent", "Agent")
+    title = task.get("title", "Mission sans titre")
+    priority = task.get("priority", "moyenne")
+    context = task.get("context", "")
+
+    if "GitHub" in agent:
+        category = "GitHub"
+    elif "Carrière" in agent:
+        category = "Carrière / Alternance"
+    elif "Cyber" in agent:
+        category = "Cybersécurité"
+    elif "Apprentissage" in agent:
+        category = "BTS SIO SISR"
+    elif "Email" in agent:
+        category = "Organisation personnelle"
+    elif "LinkedIn" in agent:
+        category = "LinkedIn"
+    else:
+        category = "ControlHub AI"
+
+    tasks.append(
+        {
+            "title": f"Exécuter mission : {title}",
+            "category": category,
+            "priority": priority,
+            "status": "à faire",
+            "linked_project": "",
+            "linked_agent": agent,
+            "due_date": "",
+            "description": context,
+        }
+    )
+
+    save_json(TASKS_FILE, tasks)
 
 
 def generate_execution_plan(task):
@@ -141,7 +180,7 @@ def render_task_card(tasks, task, index, key_prefix):
         st.write("**Contexte / instructions :**")
         st.write(context if context else "Aucun contexte fourni.")
 
-        st.markdown("### Actions")
+        st.markdown("### Suivi mission")
 
         col1, col2, col3 = st.columns(3)
 
@@ -162,6 +201,17 @@ def render_task_card(tasks, task, index, key_prefix):
                 update_task_status(tasks, index, "à faire")
                 st.success("Mission remise à faire.")
                 st.rerun()
+
+        st.divider()
+
+        st.markdown("### Transformer en tâche")
+
+        if st.button(
+            "Créer une tâche depuis cette mission",
+            key=f"{key_prefix}-create-task-{index}",
+        ):
+            create_task_from_mission(task)
+            st.success("Tâche créée dans Tâches / Planning.")
 
         st.divider()
 
