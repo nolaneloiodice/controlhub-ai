@@ -3,6 +3,7 @@ import streamlit as st
 from controlhub.storage import (
     AGENT_TASKS_FILE,
     LEARNING_LOG_FILE,
+    PROJECTS_FILE,
     TASKS_FILE,
     load_json,
     save_json,
@@ -14,8 +15,12 @@ def go_to_page(page_name):
     st.rerun()
 
 
+def normalize_text(text):
+    return text.lower().replace("-", " ").replace("_", " ").strip()
+
+
 def detect_category(user_request):
-    request = user_request.lower()
+    request = normalize_text(user_request)
 
     if any(word in request for word in ["github", "repo", "repository", "readme", "portfolio"]):
         return "GitHub"
@@ -23,40 +28,40 @@ def detect_category(user_request):
     if any(word in request for word in ["linux", "ubuntu", "apache", "système", "systemctl"]):
         return "Linux / Systèmes"
 
-    if any(word in request for word in ["réseau", "cisco", "vlan", "dhcp", "nat", "packet tracer"]):
+    if any(word in request for word in ["réseau", "reseau", "cisco", "vlan", "dhcp", "nat", "packet tracer"]):
         return "Réseaux"
 
-    if any(word in request for word in ["cyber", "tryhackme", "sécurité", "soc", "logs"]):
+    if any(word in request for word in ["cyber", "tryhackme", "sécurité", "securite", "soc", "logs"]):
         return "Cybersécurité"
 
     if any(word in request for word in ["python", "code", "debug", "streamlit"]):
         return "Python"
 
-    if any(word in request for word in ["entretien", "alternance", "cv", "carrière", "commissariat"]):
+    if any(word in request for word in ["entretien", "alternance", "cv", "carrière", "carriere", "commissariat"]):
         return "Carrière / Alternance"
 
     if any(word in request for word in ["linkedin", "post"]):
         return "LinkedIn"
 
-    if any(word in request for word in ["organisation", "journée", "planning", "vie"]):
+    if any(word in request for word in ["organisation", "journée", "journee", "planning", "vie"]):
         return "Organisation personnelle"
 
     return "ControlHub AI"
 
 
 def detect_agent(user_request):
-    request = user_request.lower()
+    request = normalize_text(user_request)
 
     if any(word in request for word in ["github", "repo", "repository", "readme", "portfolio"]):
         return "Agent GitHub"
 
-    if any(word in request for word in ["entretien", "alternance", "cv", "carrière", "linkedin", "email", "mail"]):
+    if any(word in request for word in ["entretien", "alternance", "cv", "carrière", "carriere", "linkedin", "email", "mail"]):
         return "Agent Carrière"
 
-    if any(word in request for word in ["cyber", "tryhackme", "sécurité", "soc"]):
+    if any(word in request for word in ["cyber", "tryhackme", "sécurité", "securite", "soc"]):
         return "Agent Cyber"
 
-    if any(word in request for word in ["apprendre", "réviser", "comprendre", "cours", "lab"]):
+    if any(word in request for word in ["apprendre", "réviser", "reviser", "comprendre", "cours", "lab"]):
         return "Agent Apprentissage"
 
     if any(word in request for word in ["automatiser", "script", "workflow"]):
@@ -66,15 +71,79 @@ def detect_agent(user_request):
 
 
 def detect_priority(user_request):
-    request = user_request.lower()
+    request = normalize_text(user_request)
 
-    if any(word in request for word in ["urgent", "important", "priorité", "vite", "maintenant", "aujourd"]):
+    if any(word in request for word in ["urgent", "important", "priorité", "priorite", "vite", "maintenant", "aujourd"]):
         return "haute"
 
-    if any(word in request for word in ["plus tard", "un jour", "idée", "pas urgent"]):
+    if any(word in request for word in ["plus tard", "un jour", "idée", "idee", "pas urgent"]):
         return "basse"
 
     return "moyenne"
+
+
+def detect_linked_project(user_request):
+    projects = load_json(PROJECTS_FILE, [])
+
+    if not projects:
+        return ""
+
+    request = normalize_text(user_request)
+
+    best_project_name = ""
+    best_score = 0
+
+    for project in projects:
+        project_name = project.get("name", "")
+        project_category = project.get("category", "")
+        project_description = project.get("description", "")
+
+        searchable_text = normalize_text(
+            f"{project_name} {project_category} {project_description}"
+        )
+
+        score = 0
+
+        project_words = [
+            word
+            for word in searchable_text.split()
+            if len(word) >= 3
+        ]
+
+        for word in project_words:
+            if word in request:
+                score += 1
+
+        direct_keywords = {
+            "ubuntu": ["ubuntu", "apache", "linux", "web server"],
+            "vlan": ["vlan", "inter vlan", "router on a stick"],
+            "cisco": ["cisco", "packet tracer", "router", "switch"],
+            "controlhub": ["controlhub", "dashboard", "panel", "assistant"],
+        }
+
+        for keyword_group, keywords in direct_keywords.items():
+            if keyword_group in searchable_text:
+                for keyword in keywords:
+                    if keyword in request:
+                        score += 3
+
+        if score > best_score:
+            best_score = score
+            best_project_name = project_name
+
+    if best_score >= 2:
+        return best_project_name
+
+    return ""
+
+
+def build_clean_title(user_request):
+    title = user_request.strip()
+
+    if len(title) <= 80:
+        return title
+
+    return title[:77].strip() + "..."
 
 
 def create_task_from_request(user_request):
@@ -83,14 +152,15 @@ def create_task_from_request(user_request):
     category = detect_category(user_request)
     priority = detect_priority(user_request)
     agent = detect_agent(user_request)
+    linked_project = detect_linked_project(user_request)
 
     tasks.append(
         {
-            "title": user_request.strip()[:80],
+            "title": build_clean_title(user_request),
             "category": category,
             "priority": priority,
             "status": "à faire",
-            "linked_project": "",
+            "linked_project": linked_project,
             "linked_agent": agent,
             "due_date": "",
             "description": user_request.strip(),
@@ -105,14 +175,20 @@ def create_mission_from_request(user_request):
 
     agent = detect_agent(user_request)
     priority = detect_priority(user_request)
+    linked_project = detect_linked_project(user_request)
+
+    context = user_request.strip()
+
+    if linked_project:
+        context += f"\n\nProjet lié détecté : {linked_project}"
 
     missions.append(
         {
             "agent": agent,
-            "title": f"Traiter demande : {user_request.strip()[:70]}",
+            "title": f"Traiter demande : {build_clean_title(user_request)}",
             "priority": priority,
             "status": "à faire",
-            "context": user_request.strip(),
+            "context": context,
         }
     )
 
@@ -120,6 +196,8 @@ def create_mission_from_request(user_request):
 
 
 def save_note_from_request(user_request):
+    linked_project = detect_linked_project(user_request)
+
     note = f"""
 
 ## Note rapide — Pilotage central
@@ -127,12 +205,15 @@ def save_note_from_request(user_request):
 {user_request.strip()}
 """
 
+    if linked_project:
+        note += f"\n**Projet lié détecté :** {linked_project}\n"
+
     with open(LEARNING_LOG_FILE, "a", encoding="utf-8") as file:
         file.write(note)
 
 
 def analyze_request(user_request):
-    request = user_request.lower().strip()
+    request = normalize_text(user_request)
 
     suggestions = []
 
@@ -149,7 +230,17 @@ def analyze_request(user_request):
     if not request:
         return []
 
-    if any(word in request for word in ["aujourd", "maintenant", "priorité", "quoi faire", "journée", "optimisé"]):
+    linked_project = detect_linked_project(user_request)
+
+    if linked_project:
+        add(
+            "Projets",
+            f"Voir le projet détecté : {linked_project}",
+            "ControlHub AI a détecté un projet existant lié à ta demande.",
+            9,
+        )
+
+    if any(word in request for word in ["aujourd", "maintenant", "priorité", "priorite", "quoi faire", "journée", "journee", "optimisé", "optimise"]):
         add(
             "Aujourd'hui",
             "Voir quoi faire maintenant",
@@ -157,7 +248,7 @@ def analyze_request(user_request):
             10,
         )
 
-    if any(word in request for word in ["tâche", "task", "planning", "todo", "à faire", "planifier"]):
+    if any(word in request for word in ["tâche", "tache", "task", "planning", "todo", "à faire", "a faire", "planifier"]):
         add(
             "Tâches / Planning",
             "Gérer tes tâches",
@@ -165,7 +256,7 @@ def analyze_request(user_request):
             9,
         )
 
-    if any(word in request for word in ["mission", "agent", "agents", "exécuter", "plan d’exécution"]):
+    if any(word in request for word in ["mission", "agent", "agents", "exécuter", "executer", "plan d’exécution", "plan d execution"]):
         add(
             "Missions Agents",
             "Piloter les missions agents",
@@ -174,11 +265,11 @@ def analyze_request(user_request):
         )
 
     if any(word in request for word in ["github", "repo", "repository", "readme", "portfolio", "public"]):
-        if any(word in request for word in ["créer", "nouveau", "publier", "préparer", "builder"]):
+        if any(word in request for word in ["créer", "creer", "nouveau", "publier", "préparer", "preparer", "builder"]):
             add(
                 "Repo Builder",
                 "Préparer un repository GitHub",
-                "Ta demande concerne la création ou préparation d’un repo à partir d’un projet.",
+                "Ta demande concerne la création ou la préparation d’un repo à partir d’un projet.",
                 10,
             )
         else:
@@ -197,7 +288,7 @@ def analyze_request(user_request):
             7,
         )
 
-    if any(word in request for word in ["objectif", "objectifs", "but", "priorité long terme"]):
+    if any(word in request for word in ["objectif", "objectifs", "but", "priorité long terme", "priorite long terme"]):
         add(
             "Objectifs",
             "Gérer tes objectifs",
@@ -205,7 +296,7 @@ def analyze_request(user_request):
             7,
         )
 
-    if any(word in request for word in ["note", "notes", "résumé", "résumer", "learning log", "mémoriser"]):
+    if any(word in request for word in ["note", "notes", "résumé", "resume", "résumer", "resumer", "learning log", "mémoriser", "memoriser"]):
         add(
             "Notes",
             "Écrire ou consulter tes notes",
@@ -213,7 +304,7 @@ def analyze_request(user_request):
             8,
         )
 
-    if any(word in request for word in ["session", "travailler", "apprendre", "réviser", "lab", "tryhackme"]):
+    if any(word in request for word in ["session", "travailler", "apprendre", "réviser", "reviser", "lab", "tryhackme"]):
         add(
             "Session du jour",
             "Lancer une session structurée",
@@ -221,7 +312,7 @@ def analyze_request(user_request):
             8,
         )
 
-    if any(word in request for word in ["ia", "assistant", "rédige", "écris", "décision", "choix", "optimisé", "aide-moi"]):
+    if any(word in request for word in ["ia", "assistant", "rédige", "redige", "écris", "ecris", "décision", "decision", "choix", "optimisé", "optimise", "aide moi"]):
         add(
             "Assistant IA",
             "Demander à l’assistant IA",
@@ -229,7 +320,7 @@ def analyze_request(user_request):
             9,
         )
 
-    if any(word in request for word in ["souviens", "mémoire", "préférence", "retenir", "adapte-toi"]):
+    if any(word in request for word in ["souviens", "mémoire", "memoire", "préférence", "preference", "retenir", "adapte toi"]):
         add(
             "Mémoire",
             "Ajouter ou consulter la mémoire",
@@ -237,7 +328,7 @@ def analyze_request(user_request):
             9,
         )
 
-    if any(word in request for word in ["compétence", "niveau", "skills", "progression"]):
+    if any(word in request for word in ["compétence", "competence", "niveau", "skills", "progression"]):
         add(
             "Compétences",
             "Suivre tes compétences",
@@ -253,7 +344,7 @@ def analyze_request(user_request):
             6,
         )
 
-    if any(word in request for word in ["linkedin", "email", "mail", "entretien", "alternance", "cv", "carrière"]):
+    if any(word in request for word in ["linkedin", "email", "mail", "entretien", "alternance", "cv", "carrière", "carriere"]):
         add(
             "Assistant IA",
             "Préparer un contenu carrière",
@@ -327,6 +418,32 @@ def render_quick_actions():
             go_to_page("Mémoire")
 
 
+def render_detected_context(user_request):
+    if not user_request.strip():
+        return
+
+    category = detect_category(user_request)
+    agent = detect_agent(user_request)
+    priority = detect_priority(user_request)
+    linked_project = detect_linked_project(user_request)
+
+    st.subheader("🔎 Détection automatique")
+
+    col1, col2, col3, col4 = st.columns(4)
+
+    with col1:
+        st.metric("Catégorie", category)
+
+    with col2:
+        st.metric("Priorité", priority)
+
+    with col3:
+        st.metric("Agent", agent)
+
+    with col4:
+        st.metric("Projet lié", linked_project if linked_project else "Aucun")
+
+
 def render_pilot_page():
     st.title("🎛️ Pilotage central")
 
@@ -354,6 +471,8 @@ def render_pilot_page():
         height=150,
     )
 
+    render_detected_context(user_request)
+
     col1, col2, col3, col4 = st.columns(4)
 
     with col1:
@@ -377,7 +496,12 @@ def render_pilot_page():
     if create_task:
         if user_request.strip():
             create_task_from_request(user_request)
-            st.success("Tâche créée dans Tâches / Planning.")
+            linked_project = detect_linked_project(user_request)
+
+            if linked_project:
+                st.success(f"Tâche créée dans Tâches / Planning avec projet lié : {linked_project}.")
+            else:
+                st.success("Tâche créée dans Tâches / Planning.")
         else:
             st.error("Écris d’abord ta demande.")
 
@@ -424,6 +548,6 @@ def render_pilot_page():
     st.subheader("🧠 Prochaine évolution")
 
     st.write(
-        "Plus tard, cette page pourra analyser ta demande avec l’IA locale et exécuter une action contrôlée : "
-        "créer une tâche enrichie, préparer une mission agent, générer une note structurée ou ouvrir directement le bon workflow."
+        "Plus tard, cette page pourra utiliser l’IA locale pour enrichir automatiquement "
+        "les titres, descriptions, priorités, projets liés et plans d’action."
     )
