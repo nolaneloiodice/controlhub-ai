@@ -1,6 +1,7 @@
 import streamlit as st
 
 from controlhub.pages.command_center import render_command_center_page
+from controlhub.pages.today import render_today_page
 from controlhub.pages.tasks import render_tasks_page
 from controlhub.pages.memory import render_memory_page
 from controlhub.pages.repo_builder import render_repo_builder_page
@@ -42,6 +43,7 @@ def main():
     "Navigation",
     [
     "Accueil",
+    "Aujourd'hui",
     "Command Center",
     "Missions Agents",
     "Tâches / Planning",
@@ -59,10 +61,12 @@ def main():
 )
 
     st.sidebar.divider()
-    st.sidebar.caption("Version 1.6 — Tâches et planning")
+    st.sidebar.caption("Version 1.7 — Cockpit quotidien")
 
     if page == "Accueil":
         render_home_page()
+    elif page == "Aujourd'hui":
+        render_today_page()
     elif page == "Command Center":
         render_command_center_page()
     elif page == "Missions Agents":
