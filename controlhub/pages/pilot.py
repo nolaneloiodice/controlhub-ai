@@ -1,10 +1,16 @@
 import streamlit as st
 
+from controlhub.ai_tools import (
+    generate_ai_response,
+    get_ollama_models,
+    get_recommended_model,
+)
 from controlhub.storage import (
     AGENT_TASKS_FILE,
     LEARNING_LOG_FILE,
     PROJECTS_FILE,
     TASKS_FILE,
+    load_all_data,
     load_json,
     save_json,
 )
@@ -146,13 +152,18 @@ def build_clean_title(user_request):
     return title[:77].strip() + "..."
 
 
-def create_task_from_request(user_request):
+def create_task_from_request(user_request, extra_description=""):
     tasks = load_json(TASKS_FILE, [])
 
     category = detect_category(user_request)
     priority = detect_priority(user_request)
     agent = detect_agent(user_request)
     linked_project = detect_linked_project(user_request)
+
+    description = user_request.strip()
+
+    if extra_description:
+        description += f"\n\nAnalyse IA :\n{extra_description.strip()}"
 
     tasks.append(
         {
@@ -163,14 +174,14 @@ def create_task_from_request(user_request):
             "linked_project": linked_project,
             "linked_agent": agent,
             "due_date": "",
-            "description": user_request.strip(),
+            "description": description,
         }
     )
 
     save_json(TASKS_FILE, tasks)
 
 
-def create_mission_from_request(user_request):
+def create_mission_from_request(user_request, extra_context=""):
     missions = load_json(AGENT_TASKS_FILE, [])
 
     agent = detect_agent(user_request)
@@ -181,6 +192,9 @@ def create_mission_from_request(user_request):
 
     if linked_project:
         context += f"\n\nProjet lié détecté : {linked_project}"
+
+    if extra_context:
+        context += f"\n\nAnalyse IA :\n{extra_context.strip()}"
 
     missions.append(
         {
@@ -195,7 +209,7 @@ def create_mission_from_request(user_request):
     save_json(AGENT_TASKS_FILE, missions)
 
 
-def save_note_from_request(user_request):
+def save_note_from_request(user_request, extra_content=""):
     linked_project = detect_linked_project(user_request)
 
     note = f"""
@@ -207,6 +221,9 @@ def save_note_from_request(user_request):
 
     if linked_project:
         note += f"\n**Projet lié détecté :** {linked_project}\n"
+
+    if extra_content:
+        note += f"\n### Analyse IA\n\n{extra_content.strip()}\n"
 
     with open(LEARNING_LOG_FILE, "a", encoding="utf-8") as file:
         file.write(note)
@@ -384,6 +401,69 @@ def analyze_request(user_request):
     return unique_suggestions[:4]
 
 
+def build_ai_pilot_prompt(user_request):
+    category = detect_category(user_request)
+    agent = detect_agent(user_request)
+    priority = detect_priority(user_request)
+    linked_project = detect_linked_project(user_request)
+    suggestions = analyze_request(user_request)
+
+    suggested_modules = ", ".join([item["page"] for item in suggestions])
+
+    return f"""
+Analyse cette demande dans le contexte de ControlHub AI :
+
+Demande :
+{user_request}
+
+Détection locale actuelle :
+- Catégorie : {category}
+- Agent recommandé : {agent}
+- Priorité : {priority}
+- Projet lié détecté : {linked_project if linked_project else "Aucun"}
+- Modules suggérés : {suggested_modules if suggested_modules else "Aucun"}
+
+Tu dois répondre avec :
+
+1. Intention comprise
+2. Meilleur module à utiliser
+3. Action recommandée maintenant
+4. Tâche proposée si utile
+5. Mission agent proposée si utile
+6. Plan rapide en 3 étapes maximum
+
+Règles :
+- Ne propose pas d’outil externe.
+- Ne dis pas de créer un module qui existe déjà.
+- Utilise ControlHub AI comme centre de contrôle.
+- Si tu proposes une tâche ou une mission, elle doit être concrète et courte.
+- Sois direct et utile.
+"""
+
+
+def run_ai_pilot_analysis(user_request):
+    profile, skills, projects, goals = load_all_data()
+
+    available_models = get_ollama_models()
+    model_name = get_recommended_model(
+        task_type="planning",
+        available_models=available_models,
+    )
+
+    prompt = build_ai_pilot_prompt(user_request)
+
+    return generate_ai_response(
+        prompt,
+        profile,
+        skills,
+        projects,
+        goals,
+        model_name=model_name,
+        task_type="planning",
+        response_style="Rapide",
+    )
+
+
 def render_quick_actions():
     st.subheader("⚡ Actions rapides")
 
@@ -448,8 +528,8 @@ def render_pilot_page():
     st.title("🎛️ Pilotage central")
 
     st.write(
-        "Décris ce que tu veux faire, et ControlHub AI t’envoie vers le bon module "
-        "ou crée directement une tâche, une mission ou une note."
+        "Décris ce que tu veux faire, et ControlHub AI t’envoie vers le bon module, "
+        "crée une tâche, une mission, une note, ou analyse ta demande avec l’IA locale."
     )
 
     st.info(
@@ -473,18 +553,21 @@ def render_pilot_page():
 
     render_detected_context(user_request)
 
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4, col5 = st.columns(5)
 
     with col1:
         find_module = st.button("Trouver le bon module", key="pilot-find-module")
 
     with col2:
-        create_task = st.button("Créer une tâche", key="pilot-create-task")
+        ai_analysis = st.button("Analyser avec l’IA", key="pilot-ai-analysis")
 
     with col3:
-        create_mission = st.button("Créer une mission", key="pilot-create-mission")
+        create_task = st.button("Créer une tâche", key="pilot-create-task")
 
     with col4:
+        create_mission = st.button("Créer une mission", key="pilot-create-mission")
+
+    with col5:
         save_note = st.button("Enregistrer une note", key="pilot-save-note")
 
     if find_module:
@@ -492,6 +575,16 @@ def render_pilot_page():
 
         st.session_state["pilot_suggestions"] = suggestions
         st.session_state["pilot_last_request"] = user_request
+
+    if ai_analysis:
+        if user_request.strip():
+            with st.spinner("Analyse avec l’IA locale..."):
+                analysis = run_ai_pilot_analysis(user_request)
+
+            st.session_state["pilot_ai_analysis"] = analysis
+            st.session_state["pilot_ai_request"] = user_request
+        else:
+            st.error("Écris d’abord ta demande.")
 
     if create_task:
         if user_request.strip():
@@ -518,6 +611,39 @@ def render_pilot_page():
             st.success("Note enregistrée dans Notes.")
         else:
             st.error("Écris d’abord ta demande.")
+
+    if "pilot_ai_analysis" in st.session_state:
+        st.divider()
+        st.subheader("🤖 Analyse IA du pilotage")
+        st.markdown(st.session_state["pilot_ai_analysis"])
+
+        st.subheader("Actions depuis l’analyse IA")
+
+        action_col1, action_col2, action_col3 = st.columns(3)
+
+        with action_col1:
+            if st.button("Créer tâche avec analyse IA", key="pilot-ai-create-task"):
+                create_task_from_request(
+                    st.session_state["pilot_ai_request"],
+                    extra_description=st.session_state["pilot_ai_analysis"],
+                )
+                st.success("Tâche créée avec l’analyse IA.")
+
+        with action_col2:
+            if st.button("Créer mission avec analyse IA", key="pilot-ai-create-mission"):
+                create_mission_from_request(
+                    st.session_state["pilot_ai_request"],
+                    extra_context=st.session_state["pilot_ai_analysis"],
+                )
+                st.success("Mission créée avec l’analyse IA.")
+
+        with action_col3:
+            if st.button("Enregistrer analyse en note", key="pilot-ai-save-note"):
+                save_note_from_request(
+                    st.session_state["pilot_ai_request"],
+                    extra_content=st.session_state["pilot_ai_analysis"],
+                )
+                st.success("Analyse enregistrée dans Notes.")
 
     if "pilot_suggestions" in st.session_state:
         st.subheader("🎯 Modules recommandés")
@@ -548,6 +674,6 @@ def render_pilot_page():
     st.subheader("🧠 Prochaine évolution")
 
     st.write(
-        "Plus tard, cette page pourra utiliser l’IA locale pour enrichir automatiquement "
-        "les titres, descriptions, priorités, projets liés et plans d’action."
+        "Plus tard, cette page pourra exécuter des workflows plus avancés : "
+        "créer plusieurs tâches, générer un plan complet, préparer un repo, rédiger un mail ou organiser automatiquement une journée."
     )

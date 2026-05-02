@@ -87,7 +87,7 @@ def main():
     )
 
     st.sidebar.divider()
-    st.sidebar.caption("Version 2.1 — Pilotage intelligent")
+    st.sidebar.caption("Version 2.2 — Pilotage IA")
 
     renderer = PAGE_RENDERERS.get(page)
 
