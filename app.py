@@ -1,6 +1,7 @@
 import streamlit as st
 
 from controlhub.pages.command_center import render_command_center_page
+from controlhub.pages.ai_assistant import render_ai_assistant_page
 from controlhub.pages.daily_session import render_daily_session_page
 from controlhub.pages.roadmap import render_roadmap_page
 from controlhub.pages.skills import render_skills_page
@@ -598,7 +599,7 @@ def main():
     elif page == "Notes":
         render_notes_page()
     elif page == "Assistant IA":
-        page_ai_assistant()
+        render_ai_assistant_page()
 
 if __name__ == "__main__":
     main()
