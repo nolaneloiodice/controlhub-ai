@@ -1,5 +1,6 @@
 import streamlit as st
 
+from controlhub.action_log_tools import add_action_log
 from controlhub.ai_tools import (
     generate_ai_response,
     get_ollama_models,
@@ -165,9 +166,11 @@ def create_task_from_request(user_request, extra_description=""):
     if extra_description:
         description += f"\n\nAnalyse IA :\n{extra_description.strip()}"
 
+    task_title = build_clean_title(user_request)
+
     tasks.append(
         {
-            "title": build_clean_title(user_request),
+            "title": task_title,
             "category": category,
             "priority": priority,
             "status": "à faire",
@@ -179,6 +182,13 @@ def create_task_from_request(user_request, extra_description=""):
     )
 
     save_json(TASKS_FILE, tasks)
+
+    add_action_log(
+        source="Pilotage",
+        action_type="Création tâche",
+        title=task_title,
+        details=description,
+    )
 
 
 def create_mission_from_request(user_request, extra_context=""):
@@ -196,10 +206,12 @@ def create_mission_from_request(user_request, extra_context=""):
     if extra_context:
         context += f"\n\nAnalyse IA :\n{extra_context.strip()}"
 
+    mission_title = f"Traiter demande : {build_clean_title(user_request)}"
+
     missions.append(
         {
             "agent": agent,
-            "title": f"Traiter demande : {build_clean_title(user_request)}",
+            "title": mission_title,
             "priority": priority,
             "status": "à faire",
             "context": context,
@@ -207,6 +219,13 @@ def create_mission_from_request(user_request, extra_context=""):
     )
 
     save_json(AGENT_TASKS_FILE, missions)
+
+    add_action_log(
+        source="Pilotage",
+        action_type="Création mission",
+        title=mission_title,
+        details=context,
+    )
 
 
 def save_note_from_request(user_request, extra_content=""):
@@ -227,6 +246,13 @@ def save_note_from_request(user_request, extra_content=""):
 
     with open(LEARNING_LOG_FILE, "a", encoding="utf-8") as file:
         file.write(note)
+
+    add_action_log(
+        source="Pilotage",
+        action_type="Création note",
+        title=f"Note : {build_clean_title(user_request)}",
+        details=note,
+    )
 
 
 def analyze_request(user_request):
@@ -583,6 +609,13 @@ def render_pilot_page():
 
             st.session_state["pilot_ai_analysis"] = analysis
             st.session_state["pilot_ai_request"] = user_request
+
+            add_action_log(
+                source="Pilotage",
+                action_type="Analyse IA",
+                title=f"Analyse : {build_clean_title(user_request)}",
+                details=analysis,
+            )
         else:
             st.error("Écris d’abord ta demande.")
 
