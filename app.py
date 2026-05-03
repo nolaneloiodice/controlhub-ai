@@ -20,15 +20,19 @@ from controlhub.pages.tasks import render_tasks_page
 from controlhub.pages.today import render_today_page
 
 
-APP_VERSION = "Version 3.1 — Atelier Dev orchestré"
+APP_VERSION = "Version 3.2 — Interface simplifiée"
 
 
-PAGES_BY_SECTION = {
-    "Principal": [
-        "Pilotage",
-        "Aujourd'hui",
-        "Command Center",
-    ],
+MAIN_PAGES = [
+    "Pilotage",
+    "Aujourd'hui",
+    "Assistant IA",
+    "Atelier Dev IA",
+    "Journal",
+]
+
+
+ADVANCED_PAGES_BY_SECTION = {
     "Organisation": [
         "Tâches / Planning",
         "Missions Agents",
@@ -36,20 +40,16 @@ PAGES_BY_SECTION = {
         "Objectifs",
         "Session du jour",
     ],
-    "IA & Agents": [
-        "Assistant IA",
-        "Atelier Dev IA",
-        "Mémoire",
-    ],
     "GitHub & Portfolio": [
         "GitHub",
         "Repo Builder",
         "Compétences",
         "Roadmap",
     ],
-    "Suivi & Données": [
-        "Journal",
+    "Données": [
         "Notes",
+        "Mémoire",
+        "Command Center",
         "Accueil",
     ],
 }
@@ -80,7 +80,11 @@ PAGE_RENDERERS = {
 def get_all_pages():
     pages = []
 
-    for section_pages in PAGES_BY_SECTION.values():
+    for page in MAIN_PAGES:
+        if page not in pages:
+            pages.append(page)
+
+    for section_pages in ADVANCED_PAGES_BY_SECTION.values():
         for page in section_pages:
             if page not in pages:
                 pages.append(page)
@@ -88,12 +92,20 @@ def get_all_pages():
     return pages
 
 
-def get_section_for_page(page_name):
-    for section_name, pages in PAGES_BY_SECTION.items():
+def get_page_area(page_name):
+    if page_name in MAIN_PAGES:
+        return "Principal"
+
+    for section_name, pages in ADVANCED_PAGES_BY_SECTION.items():
         if page_name in pages:
             return section_name
 
     return "Principal"
+
+
+def go_to_page(page_name):
+    st.session_state["current_page"] = page_name
+    st.rerun()
 
 
 def apply_app_style():
@@ -101,7 +113,7 @@ def apply_app_style():
         """
         <style>
         .block-container {
-            padding-top: 1.5rem;
+            padding-top: 1.2rem;
             padding-bottom: 2rem;
             max-width: 1400px;
         }
@@ -123,15 +135,20 @@ def apply_app_style():
         }
 
         .stButton button {
-            border-radius: 0.7rem;
+            border-radius: 0.8rem;
             min-height: 2.5rem;
             font-weight: 500;
+            width: 100%;
         }
 
         .app-header {
-            padding: 0.8rem 1rem;
+            padding: 0.9rem 1rem;
             border-radius: 1rem;
-            background: linear-gradient(135deg, rgba(120,120,120,0.12), rgba(120,120,120,0.04));
+            background: linear-gradient(
+                135deg,
+                rgba(120,120,120,0.12),
+                rgba(120,120,120,0.04)
+            );
             border: 1px solid rgba(120,120,120,0.18);
             margin-bottom: 1rem;
         }
@@ -146,6 +163,15 @@ def apply_app_style():
             opacity: 0.75;
             font-size: 0.9rem;
         }
+
+        .sidebar-current {
+            padding: 0.7rem;
+            border-radius: 0.8rem;
+            background: rgba(120,120,120,0.10);
+            border: 1px solid rgba(120,120,120,0.16);
+            font-size: 0.9rem;
+            margin-bottom: 0.8rem;
+        }
         </style>
         """,
         unsafe_allow_html=True,
@@ -154,7 +180,6 @@ def apply_app_style():
 
 def render_sidebar():
     all_pages = get_all_pages()
-    section_names = list(PAGES_BY_SECTION.keys())
 
     if "current_page" not in st.session_state:
         st.session_state["current_page"] = "Pilotage"
@@ -164,79 +189,70 @@ def render_sidebar():
 
         if pending_page in all_pages:
             st.session_state["current_page"] = pending_page
-            st.session_state["nav_section"] = get_section_for_page(pending_page)
-            st.session_state["nav_page"] = pending_page
 
     if st.session_state["current_page"] not in all_pages:
         st.session_state["current_page"] = "Pilotage"
 
     current_page = st.session_state["current_page"]
-    current_section = get_section_for_page(current_page)
-
-    if st.session_state.get("nav_section") not in section_names:
-        st.session_state["nav_section"] = current_section
 
     st.sidebar.title("🧠 ControlHub AI")
-    st.sidebar.caption("Centre de contrôle personnel")
+    st.sidebar.caption("Application personnelle de pilotage")
 
     st.sidebar.divider()
 
-    selected_section = st.sidebar.selectbox(
-        "Espace",
-        section_names,
-        key="nav_section",
+    st.sidebar.markdown(
+        f"""
+        <div class="sidebar-current">
+            <strong>Module actif</strong><br>
+            {current_page}<br>
+            <span style="opacity: 0.7;">{get_page_area(current_page)}</span>
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
 
-    pages = PAGES_BY_SECTION[selected_section]
+    st.sidebar.markdown("### Principal")
 
-    if st.session_state.get("nav_page") not in pages:
-        if current_page in pages:
-            st.session_state["nav_page"] = current_page
-        else:
-            st.session_state["nav_page"] = pages[0]
+    if st.sidebar.button("🎛️ Pilotage", key="nav-main-pilot"):
+        go_to_page("Pilotage")
 
-    selected_page = st.sidebar.radio(
-        "Module",
-        pages,
-        key="nav_page",
-    )
+    if st.sidebar.button("📍 Aujourd'hui", key="nav-main-today"):
+        go_to_page("Aujourd'hui")
 
-    st.session_state["current_page"] = selected_page
+    if st.sidebar.button("🤖 Assistant IA", key="nav-main-ai"):
+        go_to_page("Assistant IA")
 
-    st.sidebar.divider()
+    if st.sidebar.button("🛠️ Atelier Dev IA", key="nav-main-dev"):
+        go_to_page("Atelier Dev IA")
 
-    st.sidebar.markdown("### Raccourcis")
-
-    if st.sidebar.button("🎛️ Pilotage", key="sidebar-shortcut-pilot"):
-        st.session_state["pending_page"] = "Pilotage"
-        st.rerun()
-
-    if st.sidebar.button("📍 Aujourd'hui", key="sidebar-shortcut-today"):
-        st.session_state["pending_page"] = "Aujourd'hui"
-        st.rerun()
-
-    if st.sidebar.button("🤖 Assistant IA", key="sidebar-shortcut-ai"):
-        st.session_state["pending_page"] = "Assistant IA"
-        st.rerun()
-
-    if st.sidebar.button("🛠️ Atelier Dev IA", key="sidebar-shortcut-dev"):
-        st.session_state["pending_page"] = "Atelier Dev IA"
-        st.rerun()
+    if st.sidebar.button("📜 Journal", key="nav-main-journal"):
+        go_to_page("Journal")
 
     st.sidebar.divider()
+
+    with st.sidebar.expander("Modules avancés"):
+        for section_name, pages in ADVANCED_PAGES_BY_SECTION.items():
+            st.markdown(f"**{section_name}**")
+
+            for page in pages:
+                if st.button(page, key=f"advanced-nav-{section_name}-{page}"):
+                    go_to_page(page)
+
+            st.markdown("---")
+
     st.sidebar.caption(APP_VERSION)
 
-    return selected_page
+    return current_page
 
 
 def render_app_header(page):
-    section = get_section_for_page(page)
+    area = get_page_area(page)
 
     st.markdown(
         f"""
         <div class="app-header">
             <div class="app-header-title">{page}</div>
-            <div class="app-header-subtitle">Espace : {section}</div>
+            <div class="app-header-subtitle">Espace : {area}</div>
         </div>
         """,
         unsafe_allow_html=True,
