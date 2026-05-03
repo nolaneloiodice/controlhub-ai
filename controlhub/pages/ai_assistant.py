@@ -1,5 +1,6 @@
 import streamlit as st
 
+from controlhub.action_log_tools import add_action_log
 from controlhub.ai_tools import (
     generate_ai_response,
     get_ai_provider,
@@ -57,40 +58,79 @@ def save_ai_response_to_notes(mode, prompt, response):
     with open(LEARNING_LOG_FILE, "a", encoding="utf-8") as file:
         file.write(note)
 
+    add_action_log(
+        source="Assistant IA",
+        action_type="Création note",
+        title=f"Réponse IA enregistrée — {mode}",
+        details=note,
+    )
+
 
 def create_task_from_ai_response(mode, prompt, response):
     tasks = load_json(TASKS_FILE, [])
 
+    task_title = f"Action IA — {mode}"
+
+    task_description = f"""Demande :
+{prompt}
+
+Réponse IA :
+{response}
+"""
+
     tasks.append(
         {
-            "title": f"Action IA — {mode}",
+            "title": task_title,
             "category": "ControlHub AI",
             "priority": "moyenne",
             "status": "à faire",
             "linked_project": "",
             "linked_agent": "Assistant IA",
             "due_date": "",
-            "description": f"Demande :\n{prompt}\n\nRéponse IA :\n{response}",
+            "description": task_description,
         }
     )
 
     save_json(TASKS_FILE, tasks)
 
+    add_action_log(
+        source="Assistant IA",
+        action_type="Création tâche",
+        title=task_title,
+        details=task_description,
+    )
+
 
 def create_mission_from_ai_response(mode, prompt, response):
     missions = load_json(AGENT_TASKS_FILE, [])
 
+    mission_title = f"Traiter réponse IA — {mode}"
+
+    mission_context = f"""Demande :
+{prompt}
+
+Réponse IA :
+{response}
+"""
+
     missions.append(
         {
             "agent": "Agent Automatisation",
-            "title": f"Traiter réponse IA — {mode}",
+            "title": mission_title,
             "priority": "moyenne",
             "status": "à faire",
-            "context": f"Demande :\n{prompt}\n\nRéponse IA :\n{response}",
+            "context": mission_context,
         }
     )
 
     save_json(AGENT_TASKS_FILE, missions)
+
+    add_action_log(
+        source="Assistant IA",
+        action_type="Création mission",
+        title=mission_title,
+        details=mission_context,
+    )
 
 
 def render_ai_assistant_page():
@@ -137,6 +177,7 @@ def render_ai_assistant_page():
 
     task_type = get_task_type_from_mode(mode)
     selected_model = None
+    selected_model_label = "Non défini"
 
     if provider == "ollama":
         available_models = get_ollama_models()
@@ -157,9 +198,11 @@ def render_ai_assistant_page():
 
             if selected_model_choice == "Auto":
                 selected_model = None
+                selected_model_label = f"Auto ({recommended_model})"
                 st.info(f"Mode Auto : ControlHub utilisera probablement {recommended_model}.")
             else:
                 selected_model = selected_model_choice
+                selected_model_label = selected_model_choice
 
                 if "coder" in selected_model.lower():
                     st.info("Modèle orienté code / technique sélectionné.")
@@ -285,6 +328,19 @@ def render_ai_assistant_page():
         st.session_state["last_ai_prompt"] = prompt
         st.session_state["last_ai_response"] = result
 
+        add_action_log(
+            source="Assistant IA",
+            action_type="Génération IA",
+            title=f"Génération IA — {mode}",
+            details=(
+                f"Mode : {mode}\n"
+                f"Modèle : {selected_model_label}\n"
+                f"Style : {response_style}\n\n"
+                f"Demande :\n{prompt}\n\n"
+                f"Réponse :\n{result}"
+            ),
+        )
+
     if fallback_button:
         if mode == "Tâche du jour":
             result = run_agent_action(
@@ -327,6 +383,17 @@ def render_ai_assistant_page():
         st.session_state["last_ai_mode"] = mode
         st.session_state["last_ai_prompt"] = prompt
         st.session_state["last_ai_response"] = result
+
+        add_action_log(
+            source="Assistant IA",
+            action_type="Génération locale",
+            title=f"Génération locale — {mode}",
+            details=(
+                f"Mode : {mode}\n\n"
+                f"Demande :\n{prompt}\n\n"
+                f"Réponse :\n{result}"
+            ),
+        )
 
     if "last_ai_response" in st.session_state:
         st.divider()
