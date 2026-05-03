@@ -1,5 +1,6 @@
 import streamlit as st
 
+from controlhub.action_log_tools import add_action_log
 from controlhub.ai_tools import (
     generate_ai_response,
     get_ollama_models,
@@ -7,9 +8,11 @@ from controlhub.ai_tools import (
 )
 from controlhub.storage import (
     AGENT_TASKS_FILE,
+    LEARNING_LOG_FILE,
     TASKS_FILE,
     load_all_data,
     load_json,
+    save_json,
 )
 
 
@@ -47,14 +50,117 @@ def format_items_for_prompt(title, items, limit=6):
     )
 
     for item in sorted_items[:limit]:
+        description = item.get("description", item.get("context", ""))
+
         lines.append(
             f"- {item.get('title', item.get('name', 'Sans titre'))} "
             f"| priorité : {item.get('priority', 'non définie')} "
             f"| statut : {item.get('status', 'non défini')} "
-            f"| description : {item.get('description', item.get('context', ''))[:500]}"
+            f"| description : {description[:500]}"
         )
 
     return "\n".join(lines)
+
+
+def save_today_plan_to_notes(plan, session_duration, energy_level, focus):
+    note = f"""
+
+## Plan optimisé du jour
+
+**Temps disponible :** {session_duration}  
+**Énergie :** {energy_level}  
+**Orientation :** {focus}
+
+### Plan généré
+
+{plan}
+"""
+
+    with open(LEARNING_LOG_FILE, "a", encoding="utf-8") as file:
+        file.write(note)
+
+    add_action_log(
+        source="Aujourd'hui",
+        action_type="Création note",
+        title="Plan optimisé enregistré dans Notes",
+        details=note,
+    )
+
+
+def create_task_from_today_plan(plan, session_duration, energy_level, focus):
+    tasks = load_json(TASKS_FILE, [])
+
+    title = f"Exécuter le plan du jour — {focus}"
+
+    description = f"""Plan généré depuis Aujourd'hui.
+
+Temps disponible : {session_duration}
+Énergie : {energy_level}
+Orientation : {focus}
+
+Plan :
+{plan}
+"""
+
+    tasks.append(
+        {
+            "title": title,
+            "category": "Organisation personnelle",
+            "priority": "haute",
+            "status": "à faire",
+            "linked_project": "",
+            "linked_agent": "Assistant IA",
+            "due_date": "",
+            "description": description,
+        }
+    )
+
+    save_json(TASKS_FILE, tasks)
+
+    add_action_log(
+        source="Aujourd'hui",
+        action_type="Création tâche",
+        title=title,
+        details=description,
+    )
+
+
+def create_mission_from_today_plan(plan, session_duration, energy_level, focus):
+    missions = load_json(AGENT_TASKS_FILE, [])
+
+    title = f"Superviser le plan du jour — {focus}"
+
+    context = f"""Mission créée depuis Aujourd'hui.
+
+Objectif :
+Aider Nolane à suivre et exécuter son plan optimisé du jour.
+
+Temps disponible : {session_duration}
+Énergie : {energy_level}
+Orientation : {focus}
+
+Plan :
+{plan}
+"""
+
+    missions.append(
+        {
+            "agent": "Agent Vie personnelle",
+            "title": title,
+            "priority": "haute",
+            "status": "à faire",
+            "context": context,
+        }
+    )
+
+    save_json(AGENT_TASKS_FILE, missions)
+
+    add_action_log(
+        source="Aujourd'hui",
+        action_type="Création mission",
+        title=title,
+        details=context,
+    )
 
 
 def render_today_page():
@@ -122,7 +228,9 @@ def render_today_page():
         st.info(mission.get("title", "Mission à traiter"))
         st.write(mission.get("context", ""))
     else:
-        st.warning("Aucune tâche ou mission active. Ajoute une tâche ou une mission pour guider ta journée.")
+        st.warning(
+            "Aucune tâche ou mission active. Ajoute une tâche ou une mission pour guider ta journée."
+        )
 
     st.divider()
 
@@ -181,6 +289,7 @@ def render_today_page():
 
     available_models = get_ollama_models()
     selected_model = None
+    selected_model_label = "Auto"
 
     if available_models:
         model_options = ["Auto"] + available_models
@@ -198,9 +307,11 @@ def render_today_page():
 
         if selected_model_choice == "Auto":
             selected_model = None
+            selected_model_label = f"Auto ({recommended_model})"
             st.info(f"Mode Auto : ControlHub utilisera probablement {recommended_model}.")
         else:
             selected_model = selected_model_choice
+            selected_model_label = selected_model_choice
 
     response_style = st.selectbox(
         "Style de réponse",
@@ -250,7 +361,7 @@ def render_today_page():
         ],
     )
 
-    if st.button("Générer mon plan optimisé"):
+    if st.button("Générer mon plan optimisé", key="today-generate-plan"):
         tasks_context = format_items_for_prompt("Tâches ouvertes :", open_tasks)
         missions_context = format_items_for_prompt("Missions agents ouvertes :", open_missions)
         goals_context = format_items_for_prompt("Objectifs actifs :", open_goals)
@@ -271,6 +382,8 @@ Modules existants dans ControlHub AI :
 - Repo Builder
 - Mémoire
 - Assistant IA
+- Journal
+- Pilotage
 
 Contraintes :
 - Temps disponible : {session_duration}
@@ -310,5 +423,66 @@ Données disponibles :
                 response_style=response_style,
             )
 
+        st.session_state["today_last_plan"] = result
+        st.session_state["today_last_session_duration"] = session_duration
+        st.session_state["today_last_energy_level"] = energy_level
+        st.session_state["today_last_focus"] = focus
+
+        add_action_log(
+            source="Aujourd'hui",
+            action_type="Génération plan quotidien",
+            title=f"Plan du jour — {focus}",
+            details=(
+                f"Modèle : {selected_model_label}\n"
+                f"Style : {response_style}\n"
+                f"Temps disponible : {session_duration}\n"
+                f"Énergie : {energy_level}\n"
+                f"Orientation : {focus}\n\n"
+                f"Plan :\n{result}"
+            ),
+        )
+
+    if "today_last_plan" in st.session_state:
+        st.divider()
+
         st.subheader("Plan optimisé")
-        st.markdown(result)
+        st.markdown(st.session_state["today_last_plan"])
+
+        st.divider()
+
+        st.subheader("Actions sur ce plan")
+
+        action_col1, action_col2, action_col3 = st.columns(3)
+
+        with action_col1:
+            if st.button("Enregistrer dans Notes", key="today-save-plan-notes"):
+                save_today_plan_to_notes(
+                    st.session_state["today_last_plan"],
+                    st.session_state["today_last_session_duration"],
+                    st.session_state["today_last_energy_level"],
+                    st.session_state["today_last_focus"],
+                )
+
+                st.success("Plan enregistré dans Notes.")
+
+        with action_col2:
+            if st.button("Créer une tâche", key="today-create-task"):
+                create_task_from_today_plan(
+                    st.session_state["today_last_plan"],
+                    st.session_state["today_last_session_duration"],
+                    st.session_state["today_last_energy_level"],
+                    st.session_state["today_last_focus"],
+                )
+
+                st.success("Tâche créée dans Tâches / Planning.")
+
+        with action_col3:
+            if st.button("Créer une mission agent", key="today-create-mission"):
+                create_mission_from_today_plan(
+                    st.session_state["today_last_plan"],
+                    st.session_state["today_last_session_duration"],
+                    st.session_state["today_last_energy_level"],
+                    st.session_state["today_last_focus"],
+                )
+
+                st.success("Mission créée dans Missions Agents.")
