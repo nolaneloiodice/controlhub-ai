@@ -1,0 +1,9 @@
+[
+    {
+        "timestamp": "2026-05-03 18:30",
+        "source": "Pilotage",
+        "action_type": "Création tâche",
+        "title": "Créer une tâche depuis une demande utilisateur",
+        "details": "Exemple d'action enregistrée dans le journal."
+    }
+]

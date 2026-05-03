@@ -12,6 +12,7 @@ GOALS_FILE = DATA_DIR / "goals.json"
 AGENT_TASKS_FILE = DATA_DIR / "agent_tasks.json"
 TASKS_FILE = DATA_DIR / "tasks.json"
 MEMORY_FILE = DATA_DIR / "memory.json"
+ACTION_LOG_FILE = DATA_DIR / "action_log.json"
 LEARNING_LOG_FILE = DOCS_DIR / "learning-log.md"
 
 
