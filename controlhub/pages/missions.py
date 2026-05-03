@@ -1,11 +1,23 @@
 import streamlit as st
 
+from controlhub.action_log_tools import add_action_log
 from controlhub.storage import AGENT_TASKS_FILE, TASKS_FILE, load_json, save_json
 
 
 def update_task_status(tasks, task_index, new_status):
+    task = tasks[task_index]
+    old_status = task.get("status", "Non défini")
+    title = task.get("title", "Mission sans titre")
+
     tasks[task_index]["status"] = new_status
     save_json(AGENT_TASKS_FILE, tasks)
+
+    add_action_log(
+        source="Missions Agents",
+        action_type="Changement statut mission",
+        title=title,
+        details=f"Statut modifié : {old_status} → {new_status}",
+    )
 
 
 def create_task_from_mission(task):
@@ -31,9 +43,11 @@ def create_task_from_mission(task):
     else:
         category = "ControlHub AI"
 
+    task_title = f"Exécuter mission : {title}"
+
     tasks.append(
         {
-            "title": f"Exécuter mission : {title}",
+            "title": task_title,
             "category": category,
             "priority": priority,
             "status": "à faire",
@@ -45,6 +59,13 @@ def create_task_from_mission(task):
     )
 
     save_json(TASKS_FILE, tasks)
+
+    add_action_log(
+        source="Missions Agents",
+        action_type="Création tâche depuis mission",
+        title=task_title,
+        details=f"Mission source : {title}\nAgent : {agent}\n\nContexte :\n{context}",
+    )
 
 
 def generate_execution_plan(task):
@@ -224,6 +245,13 @@ def render_task_card(tasks, task, index, key_prefix):
             plan = generate_execution_plan(task)
             st.session_state[f"{key_prefix}-execution-plan-result-{index}"] = plan
 
+            add_action_log(
+                source="Missions Agents",
+                action_type="Plan exécution généré",
+                title=f"Plan : {title}",
+                details=plan,
+            )
+
         plan_key = f"{key_prefix}-execution-plan-result-{index}"
 
         if plan_key in st.session_state:
@@ -270,17 +298,25 @@ def render_missions_page():
 
         if submitted:
             if title.strip():
-                tasks.append(
-                    {
-                        "agent": agent,
-                        "title": title.strip(),
-                        "priority": priority,
-                        "status": status,
-                        "context": context.strip(),
-                    }
-                )
+                mission = {
+                    "agent": agent,
+                    "title": title.strip(),
+                    "priority": priority,
+                    "status": status,
+                    "context": context.strip(),
+                }
+
+                tasks.append(mission)
 
                 save_json(AGENT_TASKS_FILE, tasks)
+
+                add_action_log(
+                    source="Missions Agents",
+                    action_type="Création mission",
+                    title=title.strip(),
+                    details=f"Agent : {agent}\nPriorité : {priority}\nStatut : {status}\n\nContexte :\n{context.strip()}",
+                )
+
                 st.success("Mission ajoutée.")
                 st.rerun()
             else:
