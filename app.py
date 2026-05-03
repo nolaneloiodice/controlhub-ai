@@ -20,7 +20,7 @@ from controlhub.pages.tasks import render_tasks_page
 from controlhub.pages.today import render_today_page
 
 
-APP_VERSION = "Version 3.0 — App Shell"
+APP_VERSION = "Version 3.1 — Atelier Dev orchestré"
 
 
 PAGES_BY_SECTION = {

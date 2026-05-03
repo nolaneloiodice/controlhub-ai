@@ -24,13 +24,14 @@ DEV_PROPOSALS_DIR = Path("dev_proposals")
 
 CONTROLHUB_MODULES = """
 Modules existants dans ControlHub AI :
-- app.py : routeur principal Streamlit
+- app.py : routeur principal Streamlit et App Shell
 - controlhub/pages/pilot.py : pilotage central
 - controlhub/pages/today.py : cockpit quotidien
 - controlhub/pages/ai_assistant.py : assistant IA local
 - controlhub/pages/missions.py : missions agents
 - controlhub/pages/tasks.py : tâches / planning
 - controlhub/pages/action_log.py : journal d'activité
+- controlhub/pages/dev_workshop.py : atelier de développement IA supervisé
 - controlhub/pages/memory.py : mémoire locale
 - controlhub/pages/github.py : connecteur GitHub lecture seule
 - controlhub/pages/repo_builder.py : préparation de repositories GitHub
@@ -53,15 +54,18 @@ Règles strictes de l'Agent Développeur ControlHub :
 - Toujours citer les fichiers probablement concernés.
 - Toujours expliquer l'impact exact sur ControlHub AI.
 - Toujours signaler les risques possibles : bugs Streamlit, clés dupliquées, JSON, navigation, imports, données privées.
-- Ne jamais chercher sur Internet.
-- Si une information externe est nécessaire, demander à Nolane de la fournir.
+- Ne jamais chercher sur Internet sans validation humaine.
+- Si une information externe est nécessaire, demander à Nolane de fournir ou valider la source.
 - Ne jamais proposer d'action irréversible sans sauvegarde.
 - Préférer les fichiers complets à remplacer quand c'est plus sûr.
 - Répondre en français, de manière claire, directe et actionnable.
+- Dialoguer avec Nolane si la demande est floue.
+- Se comporter comme un assistant développeur supervisé, pas comme un simple générateur de texte.
 """
 
 
 TARGET_FILES = [
+    "Auto / à déterminer",
     "app.py",
     "controlhub/pages/pilot.py",
     "controlhub/pages/today.py",
@@ -85,17 +89,49 @@ TARGET_FILES = [
 ]
 
 
-def build_dev_prompt(request, request_type, external_context):
+def infer_request_type(request):
+    text = request.lower()
+
+    if any(word in text for word in ["bug", "erreur", "corrige", "crash", "ne marche pas"]):
+        return "Correction bug"
+
+    if any(word in text for word in ["interface", "ui", "design", "simple", "intuitif", "application"]):
+        return "Amélioration UI"
+
+    if any(word in text for word in ["refactor", "nettoyer", "simplifier le code", "réorganiser"]):
+        return "Refactor"
+
+    if any(word in text for word in ["agent", "orchestrateur", "ia", "assistant", "auto améliore"]):
+        return "Agent IA"
+
+    if any(word in text for word in ["github", "linkedin", "email", "mail", "api", "connecteur"]):
+        return "Connecteur externe"
+
+    if any(word in text for word in ["automatiser", "workflow", "automatisation"]):
+        return "Automatisation"
+
+    if any(word in text for word in ["sécurité", "permission", "validation", "rollback", "sauvegarde"]):
+        return "Sécurité / permissions"
+
+    if any(word in text for word in ["rapide", "performance", "lent", "optimiser"]):
+        return "Performance"
+
+    return "Nouvelle fonctionnalité"
+
+
+def build_dev_prompt(request, external_context):
+    detected_type = infer_request_type(request)
+
     return f"""
 Tu es l'Agent Développeur ControlHub.
 
-Ta mission est d'aider Nolane à faire évoluer ControlHub AI lui-même, sous supervision humaine.
+Tu travailles avec Nolane pour améliorer ControlHub AI lui-même.
 
 Demande de Nolane :
 {request}
 
-Type de demande :
-{request_type}
+Type détecté automatiquement :
+{detected_type}
 
 Contexte externe fourni par Nolane :
 {external_context if external_context.strip() else "Aucun contexte externe fourni."}
@@ -106,37 +142,44 @@ Contexte externe fourni par Nolane :
 
 Tu dois répondre avec cette structure :
 
-## 1. Reformulation claire
-Explique ce que tu as compris.
+## 1. Ce que j'ai compris
+Reformule clairement la demande.
 
-## 2. Impact sur ControlHub AI
-Explique ce que cette amélioration changerait concrètement dans le panel.
+## 2. Type de demande détecté
+Explique pourquoi tu classes cette demande dans ce type.
 
-## 3. Fichiers probablement concernés
+## 3. Impact exact sur ControlHub AI
+Explique ce que cela changerait dans l'application.
+
+## 4. Fichiers probablement concernés
 Liste les fichiers concernés et pourquoi.
 
-## 4. Plan technique
-Donne un plan en étapes.
+## 5. Plan technique proposé
+Donne un plan clair en étapes.
 
-## 5. Risques / points d'attention
+## 6. Points à clarifier avec Nolane
+Pose des questions seulement si c'est nécessaire. Sinon écris "Aucune clarification indispensable."
+
+## 7. Risques / points d'attention
 Indique les risques techniques possibles.
 
-## 6. Tests à faire
+## 8. Tests à faire
 Liste les tests à effectuer dans l'interface.
 
-## 7. Prochaine action recommandée
-Dis exactement ce que Nolane devrait faire ensuite.
+## 9. Prochaine action recommandée
+Dis exactement ce qu'il faut faire ensuite.
 """
 
 
 def build_file_generation_prompt(
     request,
-    request_type,
     analysis,
     target_file,
     file_goal,
     external_context,
 ):
+    detected_type = infer_request_type(request)
+
     return f"""
 Tu es l'Agent Développeur ControlHub.
 
@@ -159,8 +202,8 @@ IMPORTANT :
 Demande initiale :
 {request}
 
-Type de demande :
-{request_type}
+Type détecté automatiquement :
+{detected_type}
 
 Fichier cible ou type de fichier :
 {target_file}
@@ -229,15 +272,16 @@ def save_proposed_file(filename, content):
     return file_path
 
 
-def create_dev_task(request, request_type, analysis):
+def create_dev_task(request, analysis):
     tasks = load_json(TASKS_FILE, [])
+    request_type = infer_request_type(request)
 
     title = f"Dev ControlHub — {request_type}"
 
     description = f"""Demande :
 {request}
 
-Type :
+Type détecté :
 {request_type}
 
 Analyse Agent Développeur :
@@ -267,15 +311,16 @@ Analyse Agent Développeur :
     )
 
 
-def create_dev_mission(request, request_type, analysis):
+def create_dev_mission(request, analysis):
     missions = load_json(AGENT_TASKS_FILE, [])
+    request_type = infer_request_type(request)
 
     title = f"Agent Développeur — {request_type}"
 
     context = f"""Demande :
 {request}
 
-Type :
+Type détecté :
 {request_type}
 
 Analyse :
@@ -308,7 +353,9 @@ Règles :
     )
 
 
-def save_dev_analysis_to_notes(request, request_type, analysis):
+def save_dev_analysis_to_notes(request, analysis):
+    request_type = infer_request_type(request)
+
     note = f"""
 
 ## Analyse Agent Développeur — {request_type}
@@ -335,7 +382,6 @@ def save_dev_analysis_to_notes(request, request_type, analysis):
 
 def render_file_proposal_section(
     request,
-    request_type,
     analysis,
     external_context,
     profile,
@@ -368,8 +414,8 @@ def render_file_proposal_section(
     file_goal = st.text_area(
         "Objectif précis du fichier à générer",
         placeholder=(
-            "Exemple : Générer une version complète de pilot.py avec meilleure détection "
-            "des projets, journalisation et boutons Streamlit avec clés uniques."
+            "Exemple : Générer une version complète proposée de pilot.py avec une meilleure compréhension des demandes, "
+            "journalisation et boutons Streamlit avec clés uniques."
         ),
         height=120,
     )
@@ -381,7 +427,6 @@ def render_file_proposal_section(
 
         prompt = build_file_generation_prompt(
             request=request,
-            request_type=request_type,
             analysis=analysis,
             target_file=target_file,
             file_goal=file_goal,
@@ -442,95 +487,84 @@ def render_dev_workshop_page():
     st.title("🛠️ Atelier Dev IA")
 
     st.write(
-        "Cette page permet à ControlHub AI de travailler sur son propre développement "
-        "avec un Agent Développeur supervisé."
+        "Décris ce que tu veux améliorer. L’Agent Développeur analyse, choisit le type de demande, "
+        "propose un plan, puis prépare les actions utiles."
     )
 
     st.info(
-        "L’agent peut analyser, proposer, générer des fichiers dans `dev_proposals/`, "
-        "créer des tâches/missions/notes et journaliser. Il ne modifie pas encore les vrais fichiers automatiquement."
+        "Objectif : moins de menus, plus d’intelligence. Tu demandes, ControlHub analyse et te guide."
     )
 
     st.divider()
 
-    request_type = st.selectbox(
-        "Type de demande",
-        [
-            "Nouvelle fonctionnalité",
-            "Correction bug",
-            "Amélioration UI",
-            "Refactor",
-            "Agent IA",
-            "Connecteur externe",
-            "Automatisation",
-            "Performance",
-            "Sécurité / permissions",
-            "Autre",
-        ],
-    )
-
     request = st.text_area(
-        "Quelle amélioration veux-tu apporter à ControlHub AI ?",
+        "Que veux-tu améliorer dans ControlHub AI ?",
         placeholder=(
             "Exemples :\n"
-            "- Je veux que l’Atelier Dev IA puisse générer un fichier complet proposé.\n"
-            "- Je veux améliorer le Pilotage central.\n"
-            "- Je veux que les agents puissent préparer des commits.\n"
-            "- Je veux ajouter une sauvegarde avant modification automatique."
+            "- Je veux que l’interface ressemble plus à une application qu’à un site.\n"
+            "- Je veux que l’agent central choisisse seul le bon workflow.\n"
+            "- Je veux ajouter une sauvegarde avant modification automatique.\n"
+            "- Je veux que l’Atelier Dev IA génère un fichier complet proposé."
         ),
-        height=170,
+        height=190,
     )
 
+    detected_type = infer_request_type(request) if request.strip() else "En attente"
+    st.caption(f"Type détecté automatiquement : {detected_type}")
+
     external_context = st.text_area(
-        "Informations externes fournies par toi, si nécessaire",
+        "Contexte ou source externe fournie par toi",
         placeholder=(
             "Colle ici une documentation, une erreur, une source web, un extrait de code, "
-            "ou une précision que l’agent doit utiliser. L’agent ne cherche pas seul sur Internet."
+            "ou une précision. L’agent peut demander une source, mais ne doit pas chercher sans validation."
         ),
         height=120,
     )
 
-    available_models = get_ollama_models()
     selected_model = None
+    response_style = "Normal"
 
-    if available_models:
-        recommended_model = get_recommended_model(
-            task_type="code",
-            available_models=available_models,
+    with st.expander("Réglages avancés"):
+        available_models = get_ollama_models()
+
+        if available_models:
+            recommended_model = get_recommended_model(
+                task_type="code",
+                available_models=available_models,
+            )
+
+            model_options = ["Auto"] + available_models
+
+            selected_model_choice = st.selectbox(
+                "Modèle IA local",
+                model_options,
+                index=0,
+            )
+
+            if selected_model_choice == "Auto":
+                selected_model = recommended_model
+                st.info(f"Mode Auto : l’Atelier Dev IA utilisera probablement {recommended_model}.")
+            else:
+                selected_model = selected_model_choice
+
+        response_style = st.selectbox(
+            "Niveau de détail",
+            [
+                "Rapide",
+                "Normal",
+                "Détaillé",
+            ],
+            index=1,
         )
-
-        model_options = ["Auto"] + available_models
-
-        selected_model_choice = st.selectbox(
-            "Modèle IA local",
-            model_options,
-            index=0,
-        )
-
-        if selected_model_choice == "Auto":
-            selected_model = recommended_model
-            st.info(f"Mode Auto : l’Atelier Dev IA utilisera probablement {recommended_model}.")
-        else:
-            selected_model = selected_model_choice
-
-    response_style = st.selectbox(
-        "Niveau de détail",
-        [
-            "Rapide",
-            "Normal",
-            "Détaillé",
-        ],
-        index=1,
-    )
 
     st.divider()
 
-    if st.button("Analyser avec l’Agent Développeur", key="dev-workshop-analyze"):
+    if st.button("Analyser ma demande", key="dev-workshop-analyze"):
         if not request.strip():
             st.error("Décris d’abord l’amélioration souhaitée.")
             return
 
-        prompt = build_dev_prompt(request, request_type, external_context)
+        prompt = build_dev_prompt(request, external_context)
 
         with st.spinner("Analyse de l’Agent Développeur en cours..."):
             analysis = generate_ai_response(
@@ -545,7 +579,6 @@ def render_dev_workshop_page():
             )
 
         st.session_state["dev_last_request"] = request
-        st.session_state["dev_last_request_type"] = request_type
         st.session_state["dev_last_external_context"] = external_context
         st.session_state["dev_last_analysis"] = analysis
         st.session_state["dev_last_selected_model"] = selected_model
@@ -553,7 +586,7 @@ def render_dev_workshop_page():
         add_action_log(
             source="Atelier Dev IA",
             action_type="Analyse dev IA",
-            title=f"Analyse dev — {request_type}",
+            title=f"Analyse dev — {infer_request_type(request)}",
             details=f"Demande :\n{request}\n\nAnalyse :\n{analysis}",
         )
 
@@ -573,7 +606,6 @@ def render_dev_workshop_page():
             if st.button("Créer une tâche dev", key="dev-create-task"):
                 create_dev_task(
                     st.session_state["dev_last_request"],
-                    st.session_state["dev_last_request_type"],
                     st.session_state["dev_last_analysis"],
                 )
                 st.success("Tâche de développement créée.")
@@ -582,7 +614,6 @@ def render_dev_workshop_page():
             if st.button("Créer une mission dev", key="dev-create-mission"):
                 create_dev_mission(
                     st.session_state["dev_last_request"],
-                    st.session_state["dev_last_request_type"],
                     st.session_state["dev_last_analysis"],
                 )
                 st.success("Mission Agent Développeur créée.")
@@ -591,14 +622,12 @@ def render_dev_workshop_page():
             if st.button("Enregistrer dans Notes", key="dev-save-note"):
                 save_dev_analysis_to_notes(
                     st.session_state["dev_last_request"],
-                    st.session_state["dev_last_request_type"],
                     st.session_state["dev_last_analysis"],
                 )
                 st.success("Analyse enregistrée dans Notes.")
 
         render_file_proposal_section(
             request=st.session_state["dev_last_request"],
-            request_type=st.session_state["dev_last_request_type"],
             analysis=st.session_state["dev_last_analysis"],
             external_context=st.session_state["dev_last_external_context"],
             profile=profile,
@@ -610,9 +639,9 @@ def render_dev_workshop_page():
 
     st.divider()
 
-    st.subheader("🧭 Évolution prévue")
+    st.subheader("🧭 Direction")
 
     st.write(
-        "Étape suivante : permettre à l’Agent Développeur d’appliquer un fichier proposé "
-        "avec sauvegarde automatique de l’ancien fichier, puis test manuel avant commit."
+        "Prochaine étape : créer un Agent Orchestrateur global qui choisira automatiquement "
+        "le bon workflow, le bon agent et le bon modèle depuis Pilotage."
     )
