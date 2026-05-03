@@ -1,3 +1,6 @@
+import re
+from pathlib import Path
+
 import streamlit as st
 
 from controlhub.action_log_tools import add_action_log
@@ -14,6 +17,9 @@ from controlhub.storage import (
     load_json,
     save_json,
 )
+
+
+DEV_PROPOSALS_DIR = Path("dev_proposals")
 
 
 CONTROLHUB_MODULES = """
@@ -53,6 +59,30 @@ Règles strictes de l'Agent Développeur ControlHub :
 - Préférer les fichiers complets à remplacer quand c'est plus sûr.
 - Répondre en français, de manière claire, directe et actionnable.
 """
+
+
+TARGET_FILES = [
+    "app.py",
+    "controlhub/pages/pilot.py",
+    "controlhub/pages/today.py",
+    "controlhub/pages/ai_assistant.py",
+    "controlhub/pages/missions.py",
+    "controlhub/pages/tasks.py",
+    "controlhub/pages/action_log.py",
+    "controlhub/pages/dev_workshop.py",
+    "controlhub/pages/memory.py",
+    "controlhub/pages/github.py",
+    "controlhub/pages/repo_builder.py",
+    "controlhub/pages/projects.py",
+    "controlhub/pages/goals.py",
+    "controlhub/pages/notes.py",
+    "controlhub/pages/daily_session.py",
+    "controlhub/ai_tools.py",
+    "controlhub/action_log_tools.py",
+    "controlhub/storage.py",
+    "controlhub/memory_tools.py",
+    "Nouveau fichier",
+]
 
 
 def build_dev_prompt(request, request_type, external_context):
@@ -97,6 +127,106 @@ Liste les tests à effectuer dans l'interface.
 ## 7. Prochaine action recommandée
 Dis exactement ce que Nolane devrait faire ensuite.
 """
+
+
+def build_file_generation_prompt(
+    request,
+    request_type,
+    analysis,
+    target_file,
+    file_goal,
+    external_context,
+):
+    return f"""
+Tu es l'Agent Développeur ControlHub.
+
+Tu dois générer un fichier complet proposé pour ControlHub AI.
+
+IMPORTANT :
+- Tu ne modifies pas réellement le projet.
+- Tu génères uniquement le contenu complet d'un fichier proposé.
+- Tu dois produire uniquement le contenu du fichier.
+- Ne mets pas de bloc Markdown.
+- Ne mets pas ```python.
+- Ne mets pas d'explication avant ou après.
+- Le fichier doit être cohérent avec l'architecture actuelle.
+- Le code doit être complet, propre et utilisable.
+- Respecte les imports existants et les conventions du projet.
+- Attention aux clés Streamlit uniques.
+- Attention aux fichiers JSON privés.
+- Attention à ne pas inventer des fonctions qui n'existent pas.
+
+Demande initiale :
+{request}
+
+Type de demande :
+{request_type}
+
+Fichier cible ou type de fichier :
+{target_file}
+
+Objectif précis du fichier :
+{file_goal}
+
+Analyse précédente de l'Agent Développeur :
+{analysis}
+
+Contexte externe fourni :
+{external_context if external_context.strip() else "Aucun contexte externe fourni."}
+
+Modules existants :
+{CONTROLHUB_MODULES}
+
+Génère maintenant le contenu complet du fichier proposé.
+"""
+
+
+def ensure_dev_proposals_dir():
+    DEV_PROPOSALS_DIR.mkdir(exist_ok=True)
+
+
+def sanitize_filename(filename):
+    filename = filename.strip()
+
+    if not filename:
+        return "proposal.txt"
+
+    filename = filename.replace("\\", "_").replace("/", "_")
+    filename = re.sub(r"[^a-zA-Z0-9_.-]", "_", filename)
+
+    if "." not in filename:
+        filename += ".txt"
+
+    return filename
+
+
+def clean_generated_file_content(content):
+    cleaned = content.strip()
+
+    if cleaned.startswith("```"):
+        lines = cleaned.splitlines()
+
+        if lines and lines[0].startswith("```"):
+            lines = lines[1:]
+
+        if lines and lines[-1].startswith("```"):
+            lines = lines[:-1]
+
+        cleaned = "\n".join(lines).strip()
+
+    return cleaned + "\n"
+
+
+def save_proposed_file(filename, content):
+    ensure_dev_proposals_dir()
+
+    safe_filename = sanitize_filename(filename)
+    file_path = DEV_PROPOSALS_DIR / safe_filename
+
+    with open(file_path, "w", encoding="utf-8") as file:
+        file.write(content)
+
+    return file_path
 
 
 def create_dev_task(request, request_type, analysis):
@@ -203,6 +333,109 @@ def save_dev_analysis_to_notes(request, request_type, analysis):
     )
 
 
+def render_file_proposal_section(
+    request,
+    request_type,
+    analysis,
+    external_context,
+    profile,
+    skills,
+    projects,
+    goals,
+    selected_model,
+):
+    st.divider()
+
+    st.subheader("🧪 Génération de fichier proposé")
+
+    st.warning(
+        "Cette section génère un fichier dans `dev_proposals/`. "
+        "Elle ne modifie pas encore le vrai code de ControlHub AI."
+    )
+
+    target_file = st.selectbox(
+        "Fichier cible",
+        TARGET_FILES,
+        key="dev-target-file",
+    )
+
+    proposed_filename = st.text_input(
+        "Nom du fichier proposé",
+        value="proposal.py",
+        help="Exemple : pilot_proposal.py, today_v2.py, ai_tools_refactor.py",
+    )
+
+    file_goal = st.text_area(
+        "Objectif précis du fichier à générer",
+        placeholder=(
+            "Exemple : Générer une version complète de pilot.py avec meilleure détection "
+            "des projets, journalisation et boutons Streamlit avec clés uniques."
+        ),
+        height=120,
+    )
+
+    if st.button("Générer un fichier proposé", key="dev-generate-proposed-file"):
+        if not file_goal.strip():
+            st.error("Décris l’objectif précis du fichier à générer.")
+            return
+
+        prompt = build_file_generation_prompt(
+            request=request,
+            request_type=request_type,
+            analysis=analysis,
+            target_file=target_file,
+            file_goal=file_goal,
+            external_context=external_context,
+        )
+
+        with st.spinner("Génération du fichier proposé en cours..."):
+            generated_content = generate_ai_response(
+                prompt,
+                profile,
+                skills,
+                projects,
+                goals,
+                model_name=selected_model,
+                task_type="code",
+                response_style="Détaillé",
+            )
+
+        cleaned_content = clean_generated_file_content(generated_content)
+        file_path = save_proposed_file(proposed_filename, cleaned_content)
+
+        st.session_state["dev_last_proposed_file_path"] = str(file_path)
+        st.session_state["dev_last_proposed_file_content"] = cleaned_content
+
+        add_action_log(
+            source="Atelier Dev IA",
+            action_type="Fichier proposé généré",
+            title=f"Proposition : {file_path}",
+            details=(
+                f"Demande :\n{request}\n\n"
+                f"Fichier cible : {target_file}\n"
+                f"Objectif :\n{file_goal}\n\n"
+                f"Fichier généré : {file_path}"
+            ),
+        )
+
+        st.success(f"Fichier proposé généré : {file_path}")
+
+    if "dev_last_proposed_file_content" in st.session_state:
+        st.subheader("Dernier fichier proposé")
+
+        st.write(f"**Chemin :** {st.session_state['dev_last_proposed_file_path']}")
+
+        st.text_area(
+            "Contenu généré",
+            value=st.session_state["dev_last_proposed_file_content"],
+            height=500,
+        )
+
+        st.info(
+            "Pour l’instant, copie/colle manuellement ce contenu dans le vrai fichier seulement si tu valides."
+        )
+
+
 def render_dev_workshop_page():
     profile, skills, projects, goals = load_all_data()
 
@@ -214,8 +447,8 @@ def render_dev_workshop_page():
     )
 
     st.info(
-        "Pour l’instant, l’agent analyse, propose, crée des tâches/missions/notes et journalise. "
-        "Il ne modifie pas encore les fichiers automatiquement."
+        "L’agent peut analyser, proposer, générer des fichiers dans `dev_proposals/`, "
+        "créer des tâches/missions/notes et journaliser. Il ne modifie pas encore les vrais fichiers automatiquement."
     )
 
     st.divider()
@@ -313,7 +546,9 @@ def render_dev_workshop_page():
 
         st.session_state["dev_last_request"] = request
         st.session_state["dev_last_request_type"] = request_type
+        st.session_state["dev_last_external_context"] = external_context
         st.session_state["dev_last_analysis"] = analysis
+        st.session_state["dev_last_selected_model"] = selected_model
 
         add_action_log(
             source="Atelier Dev IA",
@@ -361,11 +596,23 @@ def render_dev_workshop_page():
                 )
                 st.success("Analyse enregistrée dans Notes.")
 
+        render_file_proposal_section(
+            request=st.session_state["dev_last_request"],
+            request_type=st.session_state["dev_last_request_type"],
+            analysis=st.session_state["dev_last_analysis"],
+            external_context=st.session_state["dev_last_external_context"],
+            profile=profile,
+            skills=skills,
+            projects=projects,
+            goals=goals,
+            selected_model=st.session_state["dev_last_selected_model"],
+        )
+
     st.divider()
 
     st.subheader("🧭 Évolution prévue")
 
     st.write(
-        "Étape suivante : permettre à l’Agent Développeur de générer un fichier complet proposé "
-        "dans un dossier `dev_proposals/`, sans modifier encore le vrai code."
+        "Étape suivante : permettre à l’Agent Développeur d’appliquer un fichier proposé "
+        "avec sauvegarde automatique de l’ancien fichier, puis test manuel avant commit."
     )
