@@ -1,30 +1,65 @@
 import streamlit as st
 
+from controlhub.action_log_tools import add_action_log
 from controlhub.storage import PROJECTS_FILE, TASKS_FILE, load_json, save_json
 
 
 def update_task_status(tasks, task_index, new_status):
+    task = tasks[task_index]
+    old_status = task.get("status", "Non défini")
+    title = task.get("title", "Tâche sans titre")
+
     tasks[task_index]["status"] = new_status
     save_json(TASKS_FILE, tasks)
 
-
-def create_task(title, category, priority, status, linked_project, linked_agent, due_date, description):
-    tasks = load_json(TASKS_FILE, [])
-
-    tasks.append(
-        {
-            "title": title.strip(),
-            "category": category.strip(),
-            "priority": priority,
-            "status": status,
-            "linked_project": linked_project,
-            "linked_agent": linked_agent,
-            "due_date": due_date.strip(),
-            "description": description.strip(),
-        }
+    add_action_log(
+        source="Tâches / Planning",
+        action_type="Changement statut tâche",
+        title=title,
+        details=f"Statut modifié : {old_status} → {new_status}",
     )
 
+
+def create_task(
+    title,
+    category,
+    priority,
+    status,
+    linked_project,
+    linked_agent,
+    due_date,
+    description,
+):
+    tasks = load_json(TASKS_FILE, [])
+
+    task = {
+        "title": title.strip(),
+        "category": category.strip(),
+        "priority": priority,
+        "status": status,
+        "linked_project": linked_project,
+        "linked_agent": linked_agent,
+        "due_date": due_date.strip(),
+        "description": description.strip(),
+    }
+
+    tasks.append(task)
     save_json(TASKS_FILE, tasks)
+
+    add_action_log(
+        source="Tâches / Planning",
+        action_type="Création tâche",
+        title=title.strip(),
+        details=(
+            f"Catégorie : {category}\n"
+            f"Priorité : {priority}\n"
+            f"Statut : {status}\n"
+            f"Projet lié : {linked_project if linked_project else 'Aucun'}\n"
+            f"Agent lié : {linked_agent if linked_agent else 'Aucun'}\n"
+            f"Date prévue : {due_date if due_date else 'Non définie'}\n\n"
+            f"Description :\n{description.strip()}"
+        ),
+    )
 
 
 def render_task_card(tasks, task, index, key_prefix):
@@ -61,16 +96,19 @@ def render_task_card(tasks, task, index, key_prefix):
         with col1:
             if st.button("Passer en cours", key=f"{key_prefix}-start-task-{index}"):
                 update_task_status(tasks, index, "en cours")
+                st.success("Tâche passée en cours.")
                 st.rerun()
 
         with col2:
             if st.button("Marquer terminé", key=f"{key_prefix}-done-task-{index}"):
                 update_task_status(tasks, index, "terminé")
+                st.success("Tâche terminée.")
                 st.rerun()
 
         with col3:
             if st.button("Remettre à faire", key=f"{key_prefix}-todo-task-{index}"):
                 update_task_status(tasks, index, "à faire")
+                st.success("Tâche remise à faire.")
                 st.rerun()
 
 
@@ -93,6 +131,7 @@ def render_tasks_page():
         st.subheader("Ajouter une tâche")
 
         title = st.text_input("Titre de la tâche")
+
         category = st.selectbox(
             "Catégorie",
             [
@@ -109,9 +148,29 @@ def render_tasks_page():
                 "Autre",
             ],
         )
-        priority = st.selectbox("Priorité", ["basse", "moyenne", "haute"], index=1)
-        status = st.selectbox("Statut", ["à faire", "en cours", "en attente", "terminé"])
+
+        priority = st.selectbox(
+            "Priorité",
+            [
+                "basse",
+                "moyenne",
+                "haute",
+            ],
+            index=1,
+        )
+
+        status = st.selectbox(
+            "Statut",
+            [
+                "à faire",
+                "en cours",
+                "en attente",
+                "terminé",
+            ],
+        )
+
         linked_project = st.selectbox("Projet lié", project_names)
+
         linked_agent = st.selectbox(
             "Agent lié",
             [
@@ -124,8 +183,10 @@ def render_tasks_page():
                 "Agent Cyber",
                 "Agent Vie personnelle",
                 "Agent Automatisation",
+                "Assistant IA",
             ],
         )
+
         due_date = st.text_input("Date prévue", placeholder="Exemple : 2026-05-05")
         description = st.text_area("Description / contexte")
 
@@ -143,6 +204,7 @@ def render_tasks_page():
                     due_date=due_date,
                     description=description,
                 )
+
                 st.success("Tâche ajoutée.")
                 st.rerun()
             else:
@@ -162,7 +224,8 @@ def render_tasks_page():
     done_tasks = [task for task in tasks if task.get("status") == "terminé"]
 
     high_priority_tasks = [
-        task for task in tasks
+        task
+        for task in tasks
         if task.get("priority") == "haute" and task.get("status") != "terminé"
     ]
 
@@ -196,33 +259,65 @@ def render_tasks_page():
         st.info(task.get("title", "Tâche à faire"))
         st.write(task.get("description", ""))
     else:
-        st.info("Aucune tâche urgente. Tu peux créer une nouvelle tâche depuis tes objectifs ou missions.")
+        st.info(
+            "Aucune tâche urgente. Tu peux créer une nouvelle tâche depuis tes objectifs ou missions."
+        )
 
     st.divider()
 
     tab_todo, tab_progress, tab_waiting, tab_done, tab_all = st.tabs(
-        ["À faire", "En cours", "En attente", "Terminées", "Toutes"]
+        [
+            "À faire",
+            "En cours",
+            "En attente",
+            "Terminées",
+            "Toutes",
+        ]
     )
 
     with tab_todo:
+        found = False
+
         for index, task in enumerate(tasks):
             if task.get("status") == "à faire":
                 render_task_card(tasks, task, index, "todo")
+                found = True
+
+        if not found:
+            st.write("Aucune tâche à faire.")
 
     with tab_progress:
+        found = False
+
         for index, task in enumerate(tasks):
             if task.get("status") == "en cours":
                 render_task_card(tasks, task, index, "progress")
+                found = True
+
+        if not found:
+            st.write("Aucune tâche en cours.")
 
     with tab_waiting:
+        found = False
+
         for index, task in enumerate(tasks):
             if task.get("status") == "en attente":
                 render_task_card(tasks, task, index, "waiting")
+                found = True
+
+        if not found:
+            st.write("Aucune tâche en attente.")
 
     with tab_done:
+        found = False
+
         for index, task in enumerate(tasks):
             if task.get("status") == "terminé":
                 render_task_card(tasks, task, index, "done")
+                found = True
+
+        if not found:
+            st.write("Aucune tâche terminée.")
 
     with tab_all:
         for index, task in enumerate(tasks):

@@ -90,7 +90,7 @@ def main():
     )
 
     st.sidebar.divider()
-    st.sidebar.caption("Version 2.5 — Journal Missions")
+    st.sidebar.caption("Version 2.6 — Journal Tâches")
 
     renderer = PAGE_RENDERERS.get(page)
 
