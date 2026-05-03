@@ -1,6 +1,7 @@
 import streamlit as st
 
 from controlhub.pages.ai_assistant import render_ai_assistant_page
+from controlhub.pages.dev_workshop import render_dev_workshop_page
 from controlhub.pages.action_log import render_action_log_page
 from controlhub.pages.command_center import render_command_center_page
 from controlhub.pages.daily_session import render_daily_session_page
@@ -21,6 +22,7 @@ from controlhub.pages.today import render_today_page
 
 PAGES = [
     "Pilotage",
+    "Atelier Dev IA",
     "Accueil",
     "Aujourd'hui",
     "Journal",
@@ -42,6 +44,7 @@ PAGES = [
 
 PAGE_RENDERERS = {
     "Pilotage": render_pilot_page,
+    "Atelier Dev IA": render_dev_workshop_page,
     "Accueil": render_home_page,
     "Aujourd'hui": render_today_page,
     "Journal": render_action_log_page,
@@ -90,7 +93,7 @@ def main():
     )
 
     st.sidebar.divider()
-    st.sidebar.caption("Version 2.7 — Cockpit quotidien actionnable")
+    st.sidebar.caption("Version 2.8 — Atelier Dev IA")
 
     renderer = PAGE_RENDERERS.get(page)
 
